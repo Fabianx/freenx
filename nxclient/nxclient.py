@@ -46,6 +46,21 @@ class SSHAuthError(Exception):
         self.errtype = errtype
         self.message = message
 
+class SSHConnectionError(Exception):
+    """
+    Attributes:
+
+    errtype - key missing, auth failed?
+    message - message explaining the problem
+
+    errtype can be:
+     0: connection refused (port closed, for example)
+    """
+    
+    def __init__ (self, errtype, message):
+        self.errtype = errtype
+        self.message = message
+
 class ProtocolError(Exception):
     """
     Attributes:
@@ -117,7 +132,7 @@ class NXClient:
         self.state = NOTCONNECTED
 
         if not os.access (sshkey, os.R_OK):
-            raise SSHAuthError (0, _('SSH key is inaccessible.\n'))
+            raise SSHAuthError (0, _('SSH key is inaccessible.'))
 
     def connect (self):
         try:
@@ -126,33 +141,47 @@ class NXClient:
             self.state = NOTCONNECTED
             raise
 
-    def _connect (self):
-        self.state = CONNECTING
+    def _waitfor (self, code):
+        connection = self.connection
         
-        connection = pexpect.spawn ('nxssh -nx -p %d -i %s nx@%s -2 -S' % \
-                                    (self.port, self.sshkey, self.host))
-        connection.setlog (sys.stdout)
+        if code: size = len (code)
+        else: size = 3
 
-        def waitfor (code):
-            connection.expect (['NX> '])
-            remote_code = connection.read (3)
-            if code and remote_code != code:
+        found = False
+        while not found:
+            try:
+                connection.expect (['NX> '])
+                remote_code = connection.read (size)
+                if not code or remote_code == code:
+                    found = True
+            except TIMEOUT, EOF:
                 message = remote_code + connection.readline ()
                 raise ProtocolError (_('Protocol error: %s') % \
                                      (message))
-            
+
+    def _connect (self):
+        self.state = CONNECTING
+        waitfor = self._waitfor
+        
+        connection = pexpect.spawn ('nxssh -nx -p %d -i %s nx@%s -2 -S' % \
+                                    (self.port, self.sshkey, self.host))
+        self.connection = connection
+        connection.setlog (sys.stdout)
+
         send = connection.send
 
         try:
             # FIXME - "^.*?" may appear, meaning that
             # the ssh key of the host is not known, "yes"
             # or "no" should be given as response
-            index = connection.expect (['HELLO', 'NX> 204 '])
+            index = connection.expect (['HELLO', 'NX> 204 ', 'nxssh: '])
             if index == 0:
                 waitfor ('105')
                 send ('HELLO NXCLIENT - Version 1.4.0\n')
             elif index == 1:
-                raise SSHAuthError (1, _('SSH key authentitcation failed.\n'))
+                raise SSHAuthError (1, _('SSH key authentitcation failed.'))
+            elif index == 2:
+                raise SSHConnectionError (0, _('Connection refused.'))
             del index
 
             # check if protocol was accepted
@@ -181,13 +210,56 @@ class NXClient:
             # ok, we're in
             waitfor ('105')
             self.state = CONNECTED
-            self.connection = connection
             
         except (EOF, TIMEOUT):
             # raise our own?
             raise
 
+    def start_session (self):
+        session = self.session
+        waitfor = self._waitfor
+        connection = self.connection
+
+        # FIXME: raise exception?
+        if not session:
+            return 1
+
+        send = connection.send
+        send ('startsession %s\n' % (session.get_start_params ()))
+
+        waitfor ('700')
+        line = connection.readline ()
+        session.id = line.split (':', 2)[1].strip ()
+
+        waitfor ('705')
+        line = connection.readline ()
+        session.display = line.split (':', 2)[1].strip ()
+
+        waitfor ('701')
+        line = connection.readline ()
+        session.pcookie = line.split (':', 2)[1].strip ()
+
+        waitfor ('1006')
+        line = connection.readline ()
+        session.status = line.split (':', 2)[1].strip ()
+
+        os.mkdir ('%s/.nx/S-%s' % (HOME, session.id))
+        f = open ('%s/.nx/S-%s/options' % (HOME, session.id), 'w')
+        f.write ('cookie=%s,root=%s/.nx,session=%s,id=%s,connect=%s:%s' % \
+                 (session.pcookie, HOME, session.sname, session.id, \
+                  self.host, session.display))
+        f.close ()
+
+        os.system ('nxproxy -S options=%s/.nx/S-%s/options:%s' % (HOME, session.id, session.display))
+
 if __name__ == '__main__':
-    nc = NXClient ('localhost', 'gnome2', 'teste')
+    from nxsession import NXSession
+
+    nc = NXClient ('200.207.4.57', 'kov', 'wsxedc')
+
     nc.connect ()
+
+    nc.session = NXSession ('teste-gnome')
+    nc.start_session ()
+
     nc.connection.send ('\n')
