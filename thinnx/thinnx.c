@@ -545,6 +545,12 @@ main (int argc, char **argv)
   /* grab auth information from the user before anything else */
   input_dialog (&user, &password);
 
+  if (!strcmp (user, "root"))
+    {
+      message_dialog ("O usuário root não pode entrar por aqui!");
+      exit (1);
+    }
+
   pipe (parent_pipe);
   pipe (child_pipe);
 
