@@ -158,6 +158,7 @@ input_dialog (gchar *message, gboolean visible)
   gtk_window_set_decorated (GTK_WINDOW(dialog), FALSE);
 #endif
   gtk_window_set_position (GTK_WINDOW(dialog), GTK_WIN_POS_CENTER_ALWAYS);
+  gtk_container_set_border_width (GTK_CONTAINER(dialog), 12);
   
   vbox = gtk_vbox_new (TRUE, 6);
   gtk_container_add (GTK_CONTAINER(dialog), vbox);
@@ -185,6 +186,44 @@ input_dialog (gchar *message, gboolean visible)
     gtk_main_iteration ();
   
   return retval;
+}
+
+void
+message_dialog (gchar *message)
+{
+  GtkWidget *dialog;
+  GtkWidget *vbox;
+  GtkWidget *label;
+  GtkWidget *button;
+
+  dialog = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+#if GTK_MAJOR_VERSION == 2
+  gtk_window_set_decorated (GTK_WINDOW(dialog), FALSE);
+#endif
+  gtk_window_set_position (GTK_WINDOW(dialog), GTK_WIN_POS_CENTER_ALWAYS);
+  gtk_container_set_border_width (GTK_CONTAINER(dialog), 12);
+  
+  vbox = gtk_vbox_new (TRUE, 6);
+  gtk_container_add (GTK_CONTAINER(dialog), vbox);
+
+  label = gtk_label_new (message);
+  gtk_box_pack_start_defaults (GTK_BOX(vbox), label);
+
+  button = gtk_button_new_with_label ("Fechar");
+  gtk_signal_connect (GTK_OBJECT(button), "clicked",
+		      GTK_SIGNAL_FUNC(gtk_main_quit), NULL);
+  gtk_box_pack_start_defaults (GTK_BOX(vbox), button);
+
+  gtk_widget_show_all (dialog);
+
+  gtk_widget_grab_focus (button);
+
+  gtk_main ();
+
+  gtk_widget_destroy (dialog);
+  
+  while (gtk_events_pending ())
+    gtk_main_iteration ();
 }
 
 int
@@ -545,7 +584,12 @@ main (int argc, char **argv)
 	}
       else
 	{
-	  flush_buffer (buffer);
+	  if (!strcmp (buffer, "NX> 404"))
+	    {
+	      message_dialog ("Login ou senha incorretos!");
+	      exit (1);
+	    }
+	  
 	  protocol_error ("you mean I did not log in successfully?");
 	}
 
