@@ -272,7 +272,8 @@ class NXClient:
 
         self._set_state (RUNNING)
 
-        os.system ('nxproxy -S options=%s/.nx/S-%s/options:%s' % (HOME, session.id, session.display))
+        os.system ('nxproxy -S options=%s/.nx/S-%s/options:%s' % \
+                   (HOME, session.id, session.display))
 
     def _set_state (self, state):
         self.state = state
