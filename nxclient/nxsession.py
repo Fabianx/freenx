@@ -20,6 +20,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
+from gtk import gdk
 import os
 
 # i18n will come!
@@ -84,6 +85,12 @@ class NXSession:
                 # raise an exception warning about the keyboard not
                 # being detected?
                 pass
+
+        # detect screen information
+        screen = gdk.screen_get_default ()
+        self.screeninfo = '%dx%dx%d+render' % \
+                          (screen.get_width (), screen.get_height (),
+                           gdk.visual_get_best_depth ())
 
     def get_start_params (self):
         # FIXME: check if self.xcookie has contents, and raise
