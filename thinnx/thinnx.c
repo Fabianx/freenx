@@ -801,5 +801,13 @@ main (int argc, char **argv)
       }
     }
 
+  write_line (in, "exit");
+  drop_line (out);
+  drop_line (out);
+  drop_line (out);
+  drop_line (out);
+
+  wait (&pid);
+
   return 0;
 }
