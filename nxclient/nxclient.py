@@ -71,11 +71,26 @@ class ProtocolError(Exception):
     def __init__ (self, message):
         self.message = message
 
+class NXProxyError(Exception):
+    """
+    Attributes:
+
+    errtype - type of the error, can be:
+              0: failed on creating directories or the
+                 options file
+    message - message explaining the problem
+    """
+
+    def __init__ (self, errtype, message):
+        self.errtype = errtype
+        self.message = message
+
 # state of the connection
 NOTCONNECTED = 0
 CONNECTING = 1
 CONNECTED = 2
-RUNNING = 3
+STARTING = 3
+RUNNING = 4
 
 class NXClient:
     """
@@ -244,6 +259,8 @@ class NXClient:
         if not session:
             return 1
 
+        self._set_state (STARTING)
+
         send = connection.send
         send ('startsession %s\n' % (session.get_start_params ()))
 
@@ -263,16 +280,19 @@ class NXClient:
         line = connection.readline ()
         session.status = line.split (':', 2)[1].strip ()
 
-        os.mkdir ('%s/.nx/S-%s' % (HOME, session.id))
-        f = open ('%s/.nx/S-%s/options' % (HOME, session.id), 'w')
-        f.write ('cookie=%s,root=%s/.nx,session=%s,id=%s,connect=%s:%s' % \
-                 (session.pcookie, HOME, session.sname, session.id, \
-                  self.host, session.display))
-        f.close ()
+        try:
+            os.mkdir ('%s/.nx/S-%s' % (HOME, session.id))
+            f = open ('%s/.nx/S-%s/options' % (HOME, session.id), 'w')
+            f.write ('cookie=%s,root=%s/.nx,session=%s,id=%s,connect=%s:%s' % \
+                     (session.pcookie, HOME, session.sname, session.id, \
+                      self.host, session.display))
+            f.close ()
+        except OSError, e:
+            raise NXProxyError (0, e.strerror)
 
         self._set_state (RUNNING)
 
-        os.system ('nxproxy -S options=%s/.nx/S-%s/options:%s' % \
+        os.system ('nxproxy -S options=%s/.nx/S-%s/options:%s > /dev/null 2>&1' % \
                    (HOME, session.id, session.display))
 
     def _set_state (self, state):
