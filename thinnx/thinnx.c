@@ -226,6 +226,35 @@ message_dialog (gchar *message)
     gtk_main_iteration ();
 }
 
+/* Handle session start information */  
+gchar *
+get_session_info (gint out, gchar *code)
+{
+  gchar *buffer;
+  gchar *retval;
+
+  buffer = read_code (out);
+  if (!strcmp (buffer, code))
+    {
+      gchar **split_str;
+	  
+      flush_buffer (buffer);
+      buffer = read_line (out);
+	  
+      split_str = g_strsplit (buffer, ":", 2);
+      retval = g_strdup (split_str[1]);
+      g_strstrip (retval);
+      g_strfreev (split_str);
+
+      return retval;
+    }
+  else
+    {
+      g_warning ("Waiting for %s, got %s\n", code, buffer);
+      protocol_error ("session info!");
+    }
+}
+
 int
 main (int argc, char **argv)
 {
@@ -612,44 +641,15 @@ main (int argc, char **argv)
       else
 	protocol_error ("session startup, buddy, I don't want problems!");
 
-      /* Handle session start information */  
-      gchar *
-	get_session_info (gchar *code)
-	{
-	  gchar *buffer;
-	  gchar *retval;
-
-	  buffer = read_code (out);
-	  if (!strcmp (buffer, code))
-	    {
-	      gchar **split_str;
-	  
-	      flush_buffer (buffer);
-	      buffer = read_line (out);
-	  
-	      split_str = g_strsplit (buffer, ":", 2);
-	      retval = g_strdup (split_str[1]);
-	      g_strstrip (retval);
-	      g_strfreev (split_str);
-
-	      return retval;
-	    }
-	  else
-	    {
-	      g_warning ("Waiting for %s, got %s\n", code, buffer);
-	      protocol_error ("session info!");
-	    }
-	}
-
-      session_id = get_session_info ("NX> 700");
-      session_display = get_session_info ("NX> 705");
+      session_id = get_session_info (out, "NX> 700");
+      session_display = get_session_info (out, "NX> 705");
       drop_line (out); /* 703 (session type) */
-      pcookie = get_session_info ("NX> 701");
+      pcookie = get_session_info (out, "NX> 701");
       drop_line (out); /* 702 proxy ip */
       drop_line (out); /* 706 agent cookie */
       drop_line (out); /* 704 session cache */
       {
-	gchar *tmp = get_session_info ("NX> 707"); /* 707 ssl tunneling */
+	gchar *tmp = get_session_info (out, "NX> 707"); /* 707 ssl tunneling */
 	
 	use_ssl = atoi (tmp);
 	g_free (tmp);
