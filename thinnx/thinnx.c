@@ -33,7 +33,15 @@
 #include <gtk/gtk.h>
 #include <glib.h>
 
-#define CONFFILE "/etc/thinnx.conf"
+#define CONFFILE "/etc/thinnx/thinnx.conf"
+
+#ifndef BINDIR
+#define BINDIR "/usr/bin"
+#endif
+
+#ifndef XAUTHBINDIR
+#define XAUTHBINDIR "/usr/X11R6/bin"
+#endif
   
 const gchar *homedir = NULL;
 
@@ -144,49 +152,97 @@ protocol_error (gchar *msg)
   exit (1);
 }
 
-gchar*
-input_dialog (gchar *message, gboolean visible)
+void
+quit_prog (GtkWidget *w, gpointer data)
+{
+  exit (0);
+}
+
+void
+clear_dialog (GtkWidget *w, gpointer data)
+{
+}
+
+void
+input_dialog (gchar **user, gchar **pass)
 {
   GtkWidget *dialog;
+  GdkPixmap *pixmap;
+  GtkWidget *image;
   GtkWidget *vbox;
+  GtkWidget *hbox;
   GtkWidget *label;
-  GtkWidget *entry;
 
-  gchar *retval;
+  GtkWidget *user_entry;
+  GtkWidget *pass_entry;
+
+  GtkWidget *connect_button;
+  GtkWidget *clear_button;
 
   dialog = gtk_window_new (GTK_WINDOW_TOPLEVEL);
 #if GTK_MAJOR_VERSION == 2
   gtk_window_set_decorated (GTK_WINDOW(dialog), FALSE);
 #endif
+  gtk_signal_connect (GTK_OBJECT(dialog), "delete-event",
+		      GTK_SIGNAL_FUNC(quit_prog), NULL);
   gtk_window_set_position (GTK_WINDOW(dialog), GTK_WIN_POS_CENTER_ALWAYS);
   gtk_container_set_border_width (GTK_CONTAINER(dialog), 12);
   
-  vbox = gtk_vbox_new (TRUE, 6);
+  vbox = gtk_vbox_new (FALSE, 10);
   gtk_container_add (GTK_CONTAINER(dialog), vbox);
 
-  label = gtk_label_new (message);
-  gtk_box_pack_start_defaults (GTK_BOX(vbox), label);
+  pixmap = gdk_pixmap_create_from_xpm (dialog->window, NULL, NULL,
+				       "/etc/icons/thinnx.xpm");
+  image = gtk_pixmap_new (pixmap, NULL);
+  gtk_box_pack_start_defaults (GTK_BOX(vbox), image);
 
-  entry = gtk_entry_new ();
-  gtk_signal_connect (GTK_OBJECT(entry), "activate",
+  hbox = gtk_hbox_new (TRUE, 4);
+  gtk_box_pack_start_defaults (GTK_BOX(vbox), hbox);
+
+  label = gtk_label_new ("Login:");
+  gtk_box_pack_start_defaults (GTK_BOX(hbox), label);
+
+  user_entry = gtk_entry_new ();
+  gtk_box_pack_start_defaults (GTK_BOX(hbox), user_entry);
+
+  hbox = gtk_hbox_new (TRUE, 4);
+  gtk_box_pack_start_defaults (GTK_BOX(vbox), hbox);
+
+  label = gtk_label_new ("Senha:");
+  gtk_box_pack_start_defaults (GTK_BOX(hbox), label);
+
+  pass_entry = gtk_entry_new ();
+  gtk_signal_connect (GTK_OBJECT(pass_entry), "activate",
 		      GTK_SIGNAL_FUNC(gtk_main_quit), NULL);
-  gtk_entry_set_visibility (GTK_ENTRY(entry), visible);
-  gtk_box_pack_start_defaults (GTK_BOX(vbox), entry);
+  gtk_entry_set_visibility (GTK_ENTRY(pass_entry), FALSE);
+  gtk_box_pack_start_defaults (GTK_BOX(hbox), pass_entry);
+
+  hbox = gtk_hbox_new (TRUE, 6);
+  gtk_box_pack_start_defaults (GTK_BOX(vbox), hbox);
+
+  clear_button = gtk_button_new_with_label ("Limpar");
+  gtk_signal_connect (GTK_OBJECT(clear_button), "clicked",
+		      GTK_SIGNAL_FUNC(clear_dialog), NULL);
+  gtk_box_pack_start_defaults (GTK_BOX(hbox), clear_button);
+
+  connect_button = gtk_button_new_with_label ("Conectar!");
+  gtk_signal_connect (GTK_OBJECT(connect_button), "clicked",
+		      GTK_SIGNAL_FUNC(gtk_main_quit), NULL);
+  gtk_box_pack_start_defaults (GTK_BOX(hbox), connect_button);
 
   gtk_widget_show_all (dialog);
 
-  gtk_widget_grab_focus (entry);
+  gtk_widget_grab_focus (user_entry);
 
   gtk_main ();
 
-  retval = g_strdup (gtk_entry_get_text (GTK_ENTRY(entry)));
+  *user = g_strdup (gtk_entry_get_text (GTK_ENTRY(user_entry)));
+  *pass = g_strdup (gtk_entry_get_text (GTK_ENTRY(pass_entry)));
 
   gtk_widget_destroy (dialog);
   
   while (gtk_events_pending ())
     gtk_main_iteration ();
-  
-  return retval;
 }
 
 void
@@ -347,7 +403,7 @@ main (int argc, char **argv)
     g_strfreev (tmpv);
 
     /* get the authorization token */
-    tmp = g_strdup_printf ("/usr/X11R6/bin/xauth list %s | "
+    tmp = g_strdup_printf (XAUTHBINDIR"/xauth list %s | "
 			   "grep 'MIT-MAGIC-COOKIE-1' | "
 			   "cut -d ' ' -f 5",
 			   display);
@@ -473,6 +529,9 @@ main (int argc, char **argv)
       }
   }
 
+  /* grab auth information from the user before anything else */
+  input_dialog (&user, &password);
+
   pipe (parent_pipe);
   pipe (child_pipe);
 
@@ -488,7 +547,7 @@ main (int argc, char **argv)
       dup2 (child_pipe[0], STDIN_FILENO);
       dup2 (parent_pipe[1], STDOUT_FILENO);
 
-      nxssh_argv[0] = g_strdup ("/usr/bin/nxssh");
+      nxssh_argv[0] = g_strdup (BINDIR"/nxssh");
       nxssh_argv[1] = g_strdup ("-nx");
       nxssh_argv[2] = g_strdup_printf ("-p%s", port);
       nxssh_argv[3] = g_strdup ("-i");
@@ -583,8 +642,6 @@ main (int argc, char **argv)
       else
 	protocol_error ("No login? How come!");
 
-      user = input_dialog ("Login", TRUE);
-
       buffer = read_code (out);
       if (!strcmp (buffer, "NX> 101"))
 	{
@@ -595,8 +652,6 @@ main (int argc, char **argv)
 	}
       else
 	protocol_error ("who took my login prompt away?");
-
-      password = input_dialog ("Senha", FALSE);
 
       buffer = read_code (out);
       if (!strcmp (buffer, "NX> 102"))
@@ -695,7 +750,7 @@ main (int argc, char **argv)
 
 	g_free (buffer);
 
-	cmdline = g_strdup_printf ("/usr/bin/nxproxy -S options=%s:%s", fname, session_display);
+	cmdline = g_strdup_printf (BINDIR"/nxproxy -S options=%s:%s", fname, session_display);
 	system (cmdline);
 	g_free (cmdline);
 
