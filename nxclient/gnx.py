@@ -115,7 +115,8 @@ class NXGUI:
         client = NXClient(config)
         self.client = client
 
-        client.log = None
+        # FIXME, this should be recorded in a log
+        client.log = sys.stdout
         client._yes_no_dialog = self._yes_no_dialog
         client._update_connection_state = self._update_connection_state
         
@@ -125,19 +126,22 @@ class NXGUI:
         # goes to 'RUNNING'"
         self.state_dialog = dialog_gui.get_widget ('con_progress')
         self.state = dialog_gui.get_widget ('state_label')
+        stop_btn = dialog_gui.get_widget ('stop_btn')
+        stop_btn.connect ('clicked', self._cancel_connect_cb)
 
         self.state.set_text (_('Initializing...'))
         self.state_dialog.show_all ()
         _update_gui ()
 
         client.connect ()
-
-        client.session = NXSession ('GNOME', 'unix-gnome')
         client.start_session ()
 
         _update_gui ()
 
         self.main_window.show ()
+
+    def _cancel_connect_cb (self, *args):
+        self.client.disconnect ()
 
     def _yes_no_dialog (self, msg):
         ret = False
@@ -160,14 +164,12 @@ class NXGUI:
 
         msg = _('Unknown')
 
-        if state_code == RUNNING:
+        if state_code == RUNNING or state_code == NOTCONNECTED:
             dialog.destroy ()
             dialog = None
             state = None
             _update_gui ()
             return
-        elif state_code == NOTCONNECTED:
-            msg = _('Initializing...')
         elif state_code == CONNECTING:
             msg = _('Authenticating...')
         elif state_code == CONNECTED:

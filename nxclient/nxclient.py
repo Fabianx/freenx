@@ -136,7 +136,7 @@ class NXClient:
         
         self.log = sys.stdout
 
-        self._set_state (NOTCONNECTED)
+        self.state = NOTCONNECTED
 
         if not os.access (config.sshkey, os.R_OK):
             raise SSHAuthError (0, _('SSH key is inaccessible.'))
@@ -146,7 +146,6 @@ class NXClient:
             self._connect ()
         except:
             self._set_state (NOTCONNECTED)
-            raise
 
     def _waitfor (self, code):
         connection = self.connection
@@ -165,6 +164,11 @@ class NXClient:
                 message = remote_code + connection.readline ()
                 raise ProtocolError (_('Protocol error: %s') % \
                                      (message))
+
+    def disconnect (self):
+        connection = self.connection
+        connection.send ('\n')
+        self._set_state (NOTCONNECTED)
 
     def _connect (self):
         host = self.config.host
