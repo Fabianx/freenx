@@ -101,6 +101,9 @@ class NXClient:
     session:     NXSession instance containing information about
                  the session to be started/resumed
 
+    log:         file object to which the session log will be written
+                 to, stdout is default
+
     connection:  file object used to communicate with the nxserver
     state:       state of the connection, one of the following:
                     NOTCONNECTED - nothing happened or connection
@@ -116,6 +119,10 @@ class NXClient:
     connect ():       starts the connection by connecting to the
                       host through nxssh and authenticating the
                       user with nxserver
+
+    Frontend Facilities:
+
+    yes_no_dialog (): asks the user a yes/no question
     
     """
 
@@ -130,7 +137,9 @@ class NXClient:
 
         self.session = session
 
-        self.state = NOTCONNECTED
+        self.log = sys.stdout
+
+        self._set_state (NOTCONNECTED)
 
         if not os.access (sshkey, os.R_OK):
             raise SSHAuthError (0, _('SSH key is inaccessible.'))
@@ -139,7 +148,7 @@ class NXClient:
         try:
             self._connect ()
         except:
-            self.state = NOTCONNECTED
+            self._set_state (NOTCONNECTED)
             raise
 
     def _waitfor (self, code):
@@ -161,29 +170,37 @@ class NXClient:
                                      (message))
 
     def _connect (self):
-        self.state = CONNECTING
+        self._set_state (CONNECTING)
         waitfor = self._waitfor
         
         connection = pexpect.spawn ('nxssh -nx -p %d -i %s nx@%s -2 -S' % \
                                     (self.port, self.sshkey, self.host))
         self.connection = connection
-        connection.setlog (sys.stdout)
+        connection.setlog (self.log)
 
         send = connection.send
 
         try:
-            # FIXME - "^.*?" may appear, meaning that
-            # the ssh key of the host is not known, "yes"
-            # or "no" should be given as response
-            index = connection.expect (['HELLO', 'NX> 204 ', 'nxssh: '])
-            if index == 0:
-                waitfor ('105')
-                send ('HELLO NXCLIENT - Version 1.4.0\n')
-            elif index == 1:
-                raise SSHAuthError (1, _('SSH key authentitcation failed.'))
-            elif index == 2:
-                raise SSHConnectionError (0, _('Connection refused.'))
-            del index
+            choice = 1
+            while choice != 0:
+                choice = connection.expect (['HELLO', 'NX> 204 ', 'nxssh: ', 'NX> 205 '])
+                if choice == 0:
+                    waitfor ('105')
+                    send ('HELLO NXCLIENT - Version 1.4.0\n')
+                elif choice == 1:
+                    raise SSHAuthError (1, _('SSH key authentitcation failed.'))
+                elif choice == 2:
+                    raise SSHConnectionError (0, _('Connection refused.'))
+                elif choice == 3:
+                    # throw away the rest of the line
+                    connection.readline ()
+                    connection.expect ('\?')
+
+                    if self._yes_no_dialog (''):
+                        send ('yes\n')
+                    else:
+                        send ('no\n')
+            del choice
 
             # check if protocol was accepted
             waitfor ('134')
@@ -210,7 +227,7 @@ class NXClient:
 
             # ok, we're in
             waitfor ('105')
-            self.state = CONNECTED
+            self._set_state (CONNECTED)
             
         except (EOF, TIMEOUT):
             # raise our own?
@@ -253,14 +270,29 @@ class NXClient:
                   self.host, session.display))
         f.close ()
 
-        self.state = RUNNING
+        self._set_state (RUNNING)
 
         os.system ('nxproxy -S options=%s/.nx/S-%s/options:%s' % (HOME, session.id, session.display))
+
+    def _set_state (self, state):
+        self.state = state
+        self._update_connection_state (state)
+
+    # Frontend Facilities
+    def _yes_no_dialog (self, msg):
+        response = raw_input (msg).strip ()
+        if response == 'yes':
+            return True
+        else:
+            return False
+
+    def _update_connection_state (self, state):
+        pass
 
 if __name__ == '__main__':
     from nxsession import NXSession
 
-    nc = NXClient ('200.207.4.57', 'kov', 'wsxedc')
+    nc = NXClient ('10.0.1.1', 'kov', 'wsxedc')
 
     nc.connect ()
 
