@@ -209,14 +209,17 @@ class NXClient:
                 elif choice == 2:
                     raise SSHConnectionError (0, _('Connection refused.'))
                 elif choice == 3:
-                    # throw away the rest of the line
-                    connection.readline ()
+                    # FIXME: should get the fingerprint and show a i18n'ed
+                    # message
+                    msg = connection.readline ()
                     connection.expect ('\?')
-
-                    if self._yes_no_dialog (''):
+                    msg += connection.before + '?'
+                    
+                    if self._yes_no_dialog (msg):
                         send ('yes\n')
                     else:
                         send ('no\n')
+                        self._set_state (NOTCONNECTED)
             del choice
 
             # check if protocol was accepted
