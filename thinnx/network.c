@@ -165,7 +165,7 @@ main (int argc, char **argv)
   gchar *user = NULL;
   gchar *password = NULL;
 
-  gchar *session = "teste-gnome";
+  gchar *session = "thinnx";
   gchar *type = "unix-gnome";
   gchar *cookie = NULL;
 
