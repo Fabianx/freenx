@@ -24,6 +24,7 @@
 #include <errno.h>
 
 #include <sys/types.h>
+#include <sys/time.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -528,7 +529,10 @@ main (int argc, char **argv)
 	      }
 	    else if (!strcmp (buffer, "NX> 204"))
 	      {
+		message_dialog ("Falha na autenticação inicial!\n"
+				"Confira a chave privada.");
 		g_critical ("Failed to authenticate to SSH using the public key!\n");
+		exit (1);
 	      }
 	    else if (!strcmp (buffer, "HELLO N"))
 	      {
