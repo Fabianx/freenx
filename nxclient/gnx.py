@@ -66,7 +66,14 @@ class NXGUI:
         session.connect ('changed', self._session_changed_cb)
         self.session = session
 
+        self._prepare_session_combo (session)
         self._update_sessions ()
+
+        new_btn = get_widget ('new_btn')
+        new_btn.connect ('clicked', self._new_session_cb)
+
+        modify_btn = get_widget ('modify_btn')
+        modify_btn.connect ('clicked', self._modify_session_cb)
 
         connect_btn = get_widget ('connect_btn')
         connect_btn.connect ('clicked', self._connect_session_cb)
@@ -74,14 +81,19 @@ class NXGUI:
 
         self.gui = gui
 
-    def _update_sessions (self):
-        session = self.session
-        
+    def _prepare_session_combo (self, session):
         cr = gtk.CellRendererText ()
         session.pack_start (cr, True)
         session.add_attribute (cr, 'text', 0)
-        model = gtk.TreeStore (gobject.TYPE_STRING)
 
+    def _update_sessions (self):
+        session = self.session
+
+        model = session.get_model ()
+        if model:
+            model.clear ()
+        
+        model = gtk.TreeStore (gobject.TYPE_STRING)
         sessions = os.listdir ('%s/.gnx/' % (HOME))
         for s in sessions:
             if s[-1] == '~':
@@ -91,6 +103,123 @@ class NXGUI:
         session.set_model (model)
         session.set_active (0)
 
+    def _new_session_cb (self, *args):
+        dialog = gtk.Dialog (_('Choose a name...'),
+                             self.main_window, 0,
+                             (gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL,
+                              gtk.STOCK_OK, gtk.RESPONSE_OK))
+        dialog.set_modal (True)
+        dialog.set_has_separator (False)
+
+        table = gtk.Table (2, 2, False)
+        table.set_border_width (6)
+        table.set_row_spacings (6)
+        table.set_col_spacings (6)
+        dialog.vbox.pack_start (table)
+
+        image = gtk.image_new_from_stock (gtk.STOCK_DIALOG_QUESTION,
+                                          gtk.ICON_SIZE_DIALOG)
+        table.attach (image, 0, 1, 0, 2)
+
+        label = gtk.Label (_('Please, choose a name for your new session:'))
+        table.attach (label, 1, 2, 0, 1)
+        
+        entry = gtk.Entry ()
+        table.attach (entry, 1, 2, 1, 2)
+
+        dialog.show_all ()
+        response = dialog.run ()
+        if response != gtk.RESPONSE_OK:
+            dialog.destroy ()
+            return
+
+        name = entry.get_text ()
+        dialog.destroy ()
+
+        self.config = NXConfig (name)
+
+        modgui, conf_edit = self._new_session_editing_window ()
+        
+        conf_edit.show_all ()
+        gtk.main ()
+
+        self.config.save ()
+        conf_edit.destroy ()
+
+        self._update_sessions ()
+
+    def _modify_session_cb (self, *args):
+        config = self.config
+
+        modgui, conf_edit = self._new_session_editing_window ()
+        
+        self._load_config_to_window (modgui)
+
+        conf_edit.show_all ()
+        gtk.main ()
+
+        if config.modified:
+            config.save ()
+
+        conf_edit.destroy ()
+
+        self._update_sessions ()
+
+    def _new_session_editing_window (self):
+        modgui = glade.XML ('gnxui.glade', 'conf_edit')
+
+        conf_edit = modgui.get_widget ('conf_edit')
+        conf_edit.connect ('delete-event', gtk.main_quit)
+        conf_edit.set_transient_for (self.main_window)
+        conf_edit.set_modal (True)
+
+        close_btn = modgui.get_widget ('conf_close_btn')
+        close_btn.connect ('clicked', gtk.main_quit)
+
+        return modgui, conf_edit
+
+    def _load_config_to_window (self, wgui):
+        config = self.config
+        
+        conf_host = wgui.get_widget ('conf_host')
+        conf_host.set_text (config.host)
+        conf_host.connect ('changed', self._conf_changed_cb, 'host')
+
+        conf_port = wgui.get_widget ('conf_port')
+        conf_port.set_text (str(config.port))
+        conf_port.connect ('changed', self._conf_changed_cb, 'port')
+
+        conf_sshkey = wgui.get_widget ('conf_sshkey')
+        conf_sshkey.set_text (config.sshkey)
+        conf_sshkey.connect ('changed', self._conf_changed_cb, 'sshkey')
+
+        geodict = {}
+        geodict['1024x768'] = 0
+        geodict['800x600'] = 1
+        geodict['640x480'] = 2
+        
+        geometry_string = config.session.geometry.split ('+', 2)[0]
+
+        conf_geometry = wgui.get_widget ('conf_geometry')
+        conf_geometry.set_active (geodict[geometry_string])
+        conf_geometry.connect ('changed', self._conf_changed_cb, 'geometry')
+
+    def _conf_changed_cb (self, w, what):
+        if what == 'host':
+            self.config.host = w.get_text ()
+        elif what == 'port':
+            self.config.port = int (w.get_text ())
+        elif what == 'sshkey':
+            self.config.sshkey = w.get_text ()
+        elif what == 'geometry':
+            model = w.get_model ()
+            iter = w.get_active_iter ()
+            self.config.session.geometry = model.get_value (iter, 0)
+            print self.config.session.geometry
+        else:
+            return # should not be reached
+
+        self.config.modified = True
 
     def _session_changed_cb (self, *args):
         session = self.session
@@ -105,6 +234,7 @@ class NXGUI:
 
     def _connect_session_cb (self, *args):
         config = self.config
+        config.save ()
 
         self.main_window.hide ()
         _update_gui ()
@@ -146,7 +276,6 @@ class NXGUI:
     def _yes_no_dialog (self, msg):
         ret = False
         
-        print msg
         dialog = gtk.MessageDialog (self.main_window, 0,
                                     gtk.MESSAGE_QUESTION,
                                     gtk.BUTTONS_YES_NO,

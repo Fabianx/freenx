@@ -226,12 +226,24 @@
 	  </child>
 
 	  <child>
+	    <widget class="GtkButton" id="new_btn">
+	      <property name="visible">True</property>
+	      <property name="can_default">True</property>
+	      <property name="can_focus">True</property>
+	      <property name="label">gtk-new</property>
+	      <property name="use_stock">True</property>
+	      <property name="relief">GTK_RELIEF_NORMAL</property>
+	      <property name="focus_on_click">True</property>
+	    </widget>
+	  </child>
+
+	  <child>
 	    <widget class="GtkButton" id="modify_btn">
 	      <property name="visible">True</property>
 	      <property name="can_default">True</property>
 	      <property name="can_focus">True</property>
-	      <property name="label" translatable="yes">Modify ...</property>
-	      <property name="use_underline">True</property>
+	      <property name="label">gtk-edit</property>
+	      <property name="use_stock">True</property>
 	      <property name="relief">GTK_RELIEF_NORMAL</property>
 	      <property name="focus_on_click">True</property>
 	    </widget>
@@ -240,6 +252,7 @@
 	  <child>
 	    <widget class="GtkButton" id="connect_btn">
 	      <property name="visible">True</property>
+	      <property name="can_default">True</property>
 	      <property name="can_focus">True</property>
 	      <property name="label" translatable="yes">_Connect</property>
 	      <property name="use_underline">True</property>
@@ -379,6 +392,7 @@
   <property name="type_hint">GDK_WINDOW_TYPE_HINT_NORMAL</property>
   <property name="gravity">GDK_GRAVITY_NORTH_WEST</property>
   <property name="focus_on_map">True</property>
+  <signal name="delete-event" handler="gtk.main_quit" last_modification_time="Fri, 11 Feb 2005 19:08:15 GMT"/>
 
   <child>
     <widget class="GtkVBox" id="vbox4">
@@ -687,7 +701,7 @@
 	  <property name="right_padding">0</property>
 
 	  <child>
-	    <widget class="GtkButton" id="prefs_close_btn">
+	    <widget class="GtkButton" id="conf_close_btn">
 	      <property name="visible">True</property>
 	      <property name="can_focus">True</property>
 	      <property name="label">gtk-close</property>

@@ -31,11 +31,9 @@ HOME = os.getenv ('HOME')
 
 class NXConfig:
     """
-    NXConfig (host, username, password [, sshkey] [, port] [, session])
+    NXConfig (name)
 
-    * sshkey defaults to $HOME/.nx/id_dsa
-    * port defaults to 22
-    * session defaults to None
+    * name is the name of a configuration file on ~/.gnx/
 
     Attributes:
 
@@ -52,6 +50,9 @@ class NXConfig:
     """
 
     def __init__ (self, name = None):
+        # for use with configuration frontends
+        self.modified = False
+
         self.host = None
         self.port = 22
         self.username = None
@@ -64,9 +65,17 @@ class NXConfig:
             self._load (name)
 
     def _load (self, name):
-        f = open ('%s/.gnx/%s' % (HOME, name))
-        lines = f.readlines ()
-        f.close ()
+        self.name = name
+        self.session = NXSession (name, 'unix-gnome')
+        
+        # FIXME: this can be failing for reasons other than the
+        # file not existing
+        try:
+            f = open ('%s/.gnx/%s' % (HOME, name))
+            lines = f.readlines ()
+            f.close ()
+        except IOError:
+            return
         
         conf = {}
         for line in lines:
@@ -79,11 +88,12 @@ class NXConfig:
         self.password = conf['password']
         self.sshkey = conf['sshkey']
 
-        self.session = NXSession (name, conf['type'])
+        self.session.stype = conf['type']
+        self.session.geometry = conf['geometry']
 
     def save (self):
         session = self.session
-        name = session.name
+        name = self.name
 
         f = open ('%s/.gnx/%s' % (HOME, name), 'w')
 
