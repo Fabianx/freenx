@@ -24,16 +24,18 @@
 def _ (x):
     return x
 
-import sys
+import os, sys
 
 import pygtk
 pygtk.require ('2.0')
-import gtk
+import gtk, gobject
 from gtk import glade
 
 from nxclient import NXClient, NOTCONNECTED, CONNECTING, CONNECTED, RUNNING, STARTING
 from nxsession import NXSession
 from nxconfig import NXConfig
+
+HOME = os.getenv ('HOME')
 
 def _update_gui ():
     while gtk.events_pending ():
@@ -57,6 +59,31 @@ class NXGUI:
         self.user = get_widget ('user')
         self.password = get_widget ('password')
 
+        session = get_widget ('session')
+        cr = gtk.CellRendererText ()
+        session.pack_start (cr, True)
+        session.add_attribute (cr, 'text', 0)
+        model = gtk.TreeStore (gobject.TYPE_STRING)
+
+        sessions = os.listdir ('%s/.gnx/' % (HOME))
+        for s in sessions:
+            if s[-1] == '~':
+                continue
+            iter = model.append (None)
+            print s
+            model.set (iter, 0, s)
+        session.set_model (model)
+        session.set_active (0)
+
+        # should actually be bound to a signal connected to
+        # the session combobox
+        iter = session.get_active_iter ()
+        name = model.get (iter, 0)[0]
+        self.config = NXConfig (name)
+
+        self.user.set_text (self.config.username)
+        self.password.set_text (self.config.password)
+
         connect_btn = get_widget ('connect_btn')
         connect_btn.connect ('clicked', self._connect_session_cb)
 
@@ -69,7 +96,10 @@ class NXGUI:
         user = self.user.get_chars (0, -1)
         password = self.password.get_chars (0, -1)
 
-        client = NXClient(NXConfig ('localhost', user, password))
+        # FIXME: get name from the ComboBox (session)
+        config = None
+
+        client = NXClient(NXConfig (config))
         
         self.client = client
 
