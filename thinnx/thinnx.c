@@ -137,9 +137,9 @@ drop_line (gint fd)
 }
 
 void
-protocol_error ()
+protocol_error (gchar *msg)
 {
-  g_critical ("Protocol Error!\n");
+  g_critical ("Protocol Error!: %s", msg);
   exit (1);
 }
 
@@ -154,7 +154,9 @@ input_dialog (gchar *message, gboolean visible)
   gchar *retval;
 
   dialog = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+#if GTK_MAJOR_VERSION == 2
   gtk_window_set_decorated (GTK_WINDOW(dialog), FALSE);
+#endif
   gtk_window_set_position (GTK_WINDOW(dialog), GTK_WIN_POS_CENTER_ALWAYS);
   
   vbox = gtk_vbox_new (TRUE, 6);
@@ -242,6 +244,7 @@ main (int argc, char **argv)
   }    
 
   {
+#if GTK_MAJOR_VERSION == 2
     GdkScreen *screen;
 
     screen = gdk_screen_get_default ();
@@ -250,6 +253,12 @@ main (int argc, char **argv)
 				  gdk_screen_get_width (screen),
 				  gdk_screen_get_height (screen),
 				  gdk_visual_get_best_depth ());
+#else
+    screeninfo = g_strdup_printf ("%dx%dx%d+render",
+				  gdk_screen_width (),
+				  gdk_screen_height (),
+				  gdk_visual_get_best_depth ());
+#endif
   }
 
   { /* get X authentication cookie information */
@@ -459,7 +468,7 @@ main (int argc, char **argv)
 		ssh_authed = TRUE;
 	      }
 	    else
-	      protocol_error ();
+	      protocol_error ("problems waiting for HELLO");
 
 	    flush_buffer (buffer);
 
@@ -478,7 +487,7 @@ main (int argc, char **argv)
 	  drop_line (out);
 	}
       else
-	protocol_error ();
+	protocol_error ("problems during HELLO");
 
       /* Handle Login */
       buffer = read_code (out);
@@ -489,7 +498,7 @@ main (int argc, char **argv)
 	  flush_buffer (buffer);
 	}
       else
-	protocol_error ();
+	protocol_error ("HELLO failed?");
 
       buffer = read_code (out);
       if (!strcmp (buffer, "NX> 105"))
@@ -500,9 +509,9 @@ main (int argc, char **argv)
 	  drop_line (out);
 	}
       else
-	protocol_error ();
+	protocol_error ("No login? How come!");
 
-      user = input_dialog ("Usuário", TRUE);
+      user = input_dialog ("Login", TRUE);
 
       buffer = read_code (out);
       if (!strcmp (buffer, "NX> 101"))
@@ -513,7 +522,7 @@ main (int argc, char **argv)
 	  drop_line (out);
 	}
       else
-	protocol_error ();
+	protocol_error ("who took my login prompt away?");
 
       password = input_dialog ("Senha", FALSE);
 
@@ -526,7 +535,7 @@ main (int argc, char **argv)
 	  drop_line (out);
 	}
       else
-	protocol_error ();
+	protocol_error ("where is my password prompt?");
 
       buffer = read_code (out);
       if (!strcmp (buffer, "NX> 103"))
@@ -535,7 +544,10 @@ main (int argc, char **argv)
 	  drop_line (out);
 	}
       else
-	protocol_error ();
+	{
+	  flush_buffer (buffer);
+	  protocol_error ("you mean I did not log in successfully?");
+	}
 
       buffer = read_code (out);
       if (!strcmp (buffer, "NX> 105"))
@@ -554,7 +566,7 @@ main (int argc, char **argv)
 	  drop_line (out);
 	}
       else
-	protocol_error ();
+	protocol_error ("session startup, buddy, I don't want problems!");
 
       /* Handle session start information */  
       gchar *
@@ -581,7 +593,7 @@ main (int argc, char **argv)
 	  else
 	    {
 	      g_warning ("Waiting for %s, got %s\n", code, buffer);
-	      protocol_error ();
+	      protocol_error ("session info!");
 	    }
 	}
 
