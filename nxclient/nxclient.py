@@ -313,11 +313,18 @@ class NXClient:
 if __name__ == '__main__':
     from nxsession import NXSession
 
-    nc = NXClient ('10.0.1.1', 'kov', 'wsxedc')
+    host = raw_input ('Host: ')
+    port = raw_input ('Port: ')
+    user = raw_input ('User: ')
+    password = raw_input ('Password: ')
+    session_type = raw_input ('Session type: ')
+
+    nc = NXClient (host, user, password)
 
     nc.connect ()
 
     nc.session = NXSession ('teste-gnome')
+    nc.session.session_type = session_type
     nc.start_session ()
 
     nc.connection.send ('\n')
