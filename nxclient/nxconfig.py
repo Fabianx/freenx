@@ -51,14 +51,57 @@ class NXConfig:
 
     """
 
-    def __init__ (self, host, username, password,
-                  sshkey = '%s/.nx/id_dsa' % (HOME),
-                  port = 22, session = None):
-        self.host = host
-        self.port = port
-        self.username = username
-        self.password = password
-        self.sshkey = sshkey
+    def __init__ (self, name = None):
+        self.host = None
+        self.port = 22
+        self.username = None
+        self.password = None
+        self.sshkey = '%s/.nx/id_dsa' % (HOME)
 
-        self.session = session
+        self.session = None
+
+        if name:
+            self._load (name)
+
+    def _load (self, name):
+        f = open ('%s/.gnx/%s' % (HOME, name))
+        lines = f.readlines ()
+        f.close ()
+        
+        conf = {}
+        for line in lines:
+            key, value = line.split ('=')
+            conf[key] = value.strip ()
+
+        self.host = conf['host']
+        self.port = conf['port']
+        self.username = conf['username']
+        self.password = conf['password']
+        self.sshkey = conf['sshkey']
+
+        self.session = NXSession (name, conf['type'])
+
+    def save (self):
+        session = self.session
+        name = session.name
+
+        f = open ('%s/.gnx/%s' % (HOME, name), 'w')
+
+        f.write ('host=%s\n' % (self.host))
+        f.write ('port=%s\n' % (self.port))
+        f.write ('username=%s\n' % (self.username))
+        f.write ('password=%s\n' % (self.password))
+        f.write ('sshkey=%s\n' % (self.sshkey))
+
+        f.write ('type=%s\n' % (session.stype))
+        f.write ('cache=%s\n' % (session.cache))
+        f.write ('images_cache=%s\n' % (session.images_cache))
+        f.write ('link=%s\n' % (session.link))
+        f.write ('geometry=%s\n' % (session.geometry))
+
+        f.close ()
     
+if __name__ == '__main__':
+    nc = NXConfig ('gnome_local')
+    nc.session.name = 'bleh'
+    nc.save ()
