@@ -206,6 +206,7 @@ main (int argc, char **argv)
 
   homedir = g_get_home_dir ();
   confdir = g_strdup_printf ("%s/.nx/", homedir);
+  sshkey = g_strdup_printf ("%s/.ssh/id_dsa", homedir);
 
   {
     struct stat info;
@@ -367,8 +368,6 @@ main (int argc, char **argv)
       }
   }
 
-  sshkey = g_strdup_printf ("%s/.ssh/id_dsa", homedir);
-
   pipe (parent_pipe);
   pipe (child_pipe);
 
@@ -420,8 +419,8 @@ main (int argc, char **argv)
 		drop_line (out);
 	      }
 	    else if (!strcmp (buffer, "NX> 208"))
-	      { /* OK, authenticating... */
-		drop_line (out);
+	      { 
+		/* OK, authenticating... */
 	      }
 	    else if (!strcmp (buffer, "NX> 204"))
 	      {
