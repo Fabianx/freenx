@@ -165,14 +165,14 @@ main (int argc, char **argv)
   gchar *user = NULL;
   gchar *password = NULL;
 
-  gchar *session = "thinnx";
-  gchar *type = "unix-gnome";
+  gchar *session = g_strdup ("thinnx");
+  gchar *type = g_strdup ("unix-gnome");
   gchar *cookie = NULL;
 
-  gchar *link = "adsl";
-  gchar *kbdtype = "pc104/us_intl";
+  gchar *link = g_strdup ("adsl");
+  gchar *kbdtype = g_strdup ("pc104/us");
 
-  gchar *geometry = NULL;
+  gchar *geometry = g_strdup ("fullscreen");
   gchar *screeninfo = NULL;
 
   gchar *session_id = NULL;
@@ -215,11 +215,6 @@ main (int argc, char **argv)
 				  gdk_screen_get_width (screen),
 				  gdk_screen_get_height (screen),
 				  gdk_visual_get_best_depth ());
-    
-    geometry = g_strdup_printf ("%dx%d", 
-				gdk_screen_get_width (screen),
-				gdk_screen_get_height (screen),
-				screeninfo);
   }
 
   { /* get X authentication cookie information */
