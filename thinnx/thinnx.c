@@ -44,6 +44,7 @@
 #endif
   
 const gchar *homedir = NULL;
+gchar *buffer = NULL;
 
 void
 flush_buffer (gchar *buffer)
@@ -148,6 +149,7 @@ drop_line (gint fd)
 void
 protocol_error (gchar *msg)
 {
+  flush_buffer (buffer);
   g_critical ("Protocol Error!: %s", msg);
   exit (1);
 }
@@ -283,6 +285,21 @@ message_dialog (gchar *message)
     gtk_main_iteration ();
 }
 
+gchar*
+get_info_after_colon (gchar *buffer)
+{
+  gchar **split_str;
+  gchar *retval;
+  
+  split_str = g_strsplit (buffer, ":", 1);
+  retval = g_strdup (split_str[1]);
+  printf ("%s: ", split_str[0]);
+  g_strstrip (retval);
+  g_strfreev (split_str);
+  
+  return retval;
+}
+
 /* Handle session start information */  
 gchar *
 get_session_info (gint out, gchar *code)
@@ -293,16 +310,10 @@ get_session_info (gint out, gchar *code)
   buffer = read_code (out);
   if (!strcmp (buffer, code))
     {
-      gchar **split_str;
-	  
       flush_buffer (buffer);
       buffer = read_line (out);
-	  
-      split_str = g_strsplit (buffer, ":", 2);
-      retval = g_strdup (split_str[1]);
-      g_strstrip (retval);
-      g_strfreev (split_str);
-
+      retval = get_info_after_colon (buffer);
+      g_free (buffer);
       return retval;
     }
   else
@@ -348,8 +359,6 @@ main (int argc, char **argv)
   int child_pipe[2];	/* For talking to the child */
 
   gint in, out;
-
-  gchar *buffer = NULL;
 
   gtk_init (&argc, &argv);
 
@@ -586,6 +595,29 @@ main (int argc, char **argv)
 	    else if (!strcmp (buffer, "NX> 208"))
 	      { 
 		/* OK, authenticating... */
+	      }
+	    else if (!strcmp (buffer, "NX> 203") || 
+		     (!strcmp (buffer, "NX> 285")))
+	      {
+		/* ignored stderr */
+	      }
+	    else if (!strncmp (buffer, "nxssh", 5))
+	      {
+		gchar *msg;
+
+		flush_buffer (buffer);
+		buffer = read_line (out);
+		msg = get_info_after_colon (buffer);
+		g_free (buffer);
+
+		if (!strcmp (msg, "Name or service not known"))
+		  message_dialog ("Não foi possível resolver o nome do servidor.");
+		else if (!strcmp (msg, "Connection refused"))
+		  message_dialog ("A conexão foi recusada!\n"
+				  "Verifique a porta.");
+		flush_buffer (msg);
+		fprintf (stderr, "\n");
+		exit (1);
 	      }
 	    else if (!strcmp (buffer, "NX> 204"))
 	      {
