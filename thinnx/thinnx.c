@@ -49,9 +49,12 @@ gchar *buffer = NULL;
 void
 flush_buffer (gchar *buffer)
 {
+  if (buffer == NULL)
+    return;
+
   g_print (buffer);
   g_free (buffer);
-  fflush (stdout);
+  buffer = NULL;
 }
 
 gchar*
@@ -628,6 +631,9 @@ main (int argc, char **argv)
 		write_line (in, "yes");
 		drop_line (out);
 		drop_line (out);
+
+		/* buffer != NULL? but why?! */
+		buffer = NULL;
 	      }
 	    else if (!strcmp (buffer, "NX> 208"))
 	      { 
