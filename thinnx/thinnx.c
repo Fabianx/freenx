@@ -170,8 +170,13 @@ void
 input_dialog (gchar **user, gchar **pass)
 {
   GtkWidget *dialog;
+
+  GdkColormap *colormap;
+  GtkStyle *style;
+  GdkBitmap *mask;
   GdkPixmap *pixmap;
   GtkWidget *image;
+
   GtkWidget *vbox;
   GtkWidget *hbox;
   GtkWidget *label;
@@ -194,9 +199,12 @@ input_dialog (gchar **user, gchar **pass)
   vbox = gtk_vbox_new (FALSE, 26);
   gtk_container_add (GTK_CONTAINER(dialog), vbox);
 
-  pixmap = gdk_pixmap_create_from_xpm (dialog->window, NULL, NULL,
-				       "/etc/icons/thinnx.xpm");
-  image = gtk_pixmap_new (pixmap, NULL);
+  style = gtk_widget_get_style (dialog);
+  colormap = gtk_widget_get_colormap(dialog);
+  pixmap = gdk_pixmap_colormap_create_from_xpm (dialog->window, colormap, 
+						&mask, NULL,
+						"/etc/icons/thinnx.xpm");
+  image = gtk_pixmap_new (pixmap, mask);
   gtk_box_pack_start_defaults (GTK_BOX(vbox), image);
 
   hbox = gtk_hbox_new (TRUE, 4);
@@ -253,6 +261,14 @@ message_dialog (gchar *message)
 {
   GtkWidget *dialog;
   GtkWidget *vbox;
+  GtkWidget *hbox;
+
+  GdkColormap *colormap;
+  GtkStyle *style;
+  GdkBitmap *mask;
+  GdkPixmap *pixmap;
+  GtkWidget *image;
+
   GtkWidget *label;
   GtkWidget *button;
 
@@ -263,11 +279,22 @@ message_dialog (gchar *message)
   gtk_window_set_position (GTK_WINDOW(dialog), GTK_WIN_POS_CENTER_ALWAYS);
   gtk_container_set_border_width (GTK_CONTAINER(dialog), 12);
   
-  vbox = gtk_vbox_new (TRUE, 6);
+  vbox = gtk_vbox_new (FALSE, 10);
   gtk_container_add (GTK_CONTAINER(dialog), vbox);
 
+  hbox = gtk_hbox_new (FALSE, 10);
+  gtk_box_pack_start_defaults (GTK_BOX(vbox), hbox);
+
+  style = gtk_widget_get_style (dialog);
+  colormap = gtk_widget_get_colormap(dialog);
+  pixmap = gdk_pixmap_colormap_create_from_xpm (dialog->window, colormap, 
+						&mask, NULL,
+						"/etc/icons/error.xpm");
+  image = gtk_pixmap_new (pixmap, mask);
+  gtk_box_pack_start_defaults (GTK_BOX(hbox), image);
+
   label = gtk_label_new (message);
-  gtk_box_pack_start_defaults (GTK_BOX(vbox), label);
+  gtk_box_pack_start_defaults (GTK_BOX(hbox), label);
 
   button = gtk_button_new_with_label ("Fechar");
   gtk_signal_connect (GTK_OBJECT(button), "clicked",
