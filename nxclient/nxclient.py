@@ -75,6 +75,7 @@ class ProtocolError(Exception):
 NOTCONNECTED = 0
 CONNECTING = 1
 CONNECTED = 2
+RUNNING = 3
 
 class NXClient:
     """
@@ -215,6 +216,8 @@ class NXClient:
             # raise our own?
             raise
 
+    # FIXME: LOADS of error-checking missing, should not
+    # block on os.system()
     def start_session (self):
         session = self.session
         waitfor = self._waitfor
@@ -249,6 +252,8 @@ class NXClient:
                  (session.pcookie, HOME, session.sname, session.id, \
                   self.host, session.display))
         f.close ()
+
+        self.state = RUNNING
 
         os.system ('nxproxy -S options=%s/.nx/S-%s/options:%s' % (HOME, session.id, session.display))
 
