@@ -266,9 +266,7 @@ class NXGUI:
         client.connect ()
         client.start_session ()
 
-        _update_gui ()
-
-        self.main_window.show ()
+        gtk.main_quit ()
 
     def _cancel_connect_cb (self, *args):
         self.client.disconnect ()
