@@ -33,6 +33,7 @@ from gtk import glade
 
 from nxclient import NXClient, NOTCONNECTED, CONNECTING, CONNECTED, RUNNING, STARTING
 from nxsession import NXSession
+from nxconfig import NXConfig
 
 def _update_gui ():
     while gtk.events_pending ():
@@ -68,7 +69,8 @@ class NXGUI:
         user = self.user.get_chars (0, -1)
         password = self.password.get_chars (0, -1)
 
-        client = NXClient ('localhost', user, password)
+        client = NXClient(NXConfig ('localhost', user, password))
+        
         self.client = client
 
         client.log = None

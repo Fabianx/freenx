@@ -100,23 +100,11 @@ class NXClient:
 
     Instantiation:
 
-    NXClient (host, username, password [, sshkey] [, port] [, session])
+    NXClient (config)
 
-    * sshkey defaults to $HOME/.nx/id_dsa
-    * port defaults to 22
-    * session defaults to None
+    * config is an instance of NXConfig
 
     Attributes:
-
-    host:        the host to connect to using nxssh
-    port:        the port in which the ssh server is listening
-    username:    the username to start the session with
-    password:    the password for said user
-
-    sshkey:      path for the ssh private key for ssh key auth
-
-    session:     NXSession instance containing information about
-                 the session to be started/resumed
 
     log:         file object to which the session log will be written
                  to, stdout is default
@@ -143,22 +131,14 @@ class NXClient:
     
     """
 
-    def __init__ (self, host, username, password,
-                  sshkey = '%s/.nx/id_dsa' % (HOME),
-                  port = 22, session = None):
-        self.host = host
-        self.port = port
-        self.username = username
-        self.password = password
-        self.sshkey = sshkey
-
-        self.session = session
-
+    def __init__ (self, config):
+        self.config = config
+        
         self.log = sys.stdout
 
         self._set_state (NOTCONNECTED)
 
-        if not os.access (sshkey, os.R_OK):
+        if not os.access (config.sshkey, os.R_OK):
             raise SSHAuthError (0, _('SSH key is inaccessible.'))
 
     def connect (self):
@@ -187,11 +167,17 @@ class NXClient:
                                      (message))
 
     def _connect (self):
+        host = self.config.host
+        port = self.config.port
+        username = self.config.username
+        password = self.config.password
+        sshkey = self.config.sshkey
+
         self._set_state (CONNECTING)
         waitfor = self._waitfor
         
         connection = pexpect.spawn ('nxssh -nx -p %d -i %s nx@%s -2 -S' % \
-                                    (self.port, self.sshkey, self.host))
+                                    (port, sshkey, host))
         self.connection = connection
         connection.setlog (self.log)
 
@@ -231,11 +217,11 @@ class NXClient:
 
             # user prompt
             waitfor ('101')
-            send (self.username + '\n')
+            send (username + '\n')
 
             # password prompt
             waitfor ('102')
-            send (self.password + '\n')
+            send (password + '\n')
 
             # check if all went fine
             waitfor (None)
@@ -256,7 +242,9 @@ class NXClient:
     # FIXME: LOADS of error-checking missing, should not
     # block on os.system()
     def start_session (self):
-        session = self.session
+        host = self.config.host
+        session = self.config.session
+
         waitfor = self._waitfor
         connection = self.connection
 
@@ -290,7 +278,7 @@ class NXClient:
             f = open ('%s/.nx/S-%s/options' % (HOME, session.id), 'w')
             f.write ('cookie=%s,root=%s/.nx,session=%s,id=%s,connect=%s:%s' % \
                      (session.pcookie, HOME, session.sname, session.id, \
-                      self.host, session.display))
+                      host, session.display))
             f.close ()
         except OSError, e:
             raise NXProxyError (0, e.strerror)
@@ -316,6 +304,7 @@ class NXClient:
         pass
 
 if __name__ == '__main__':
+    from nxconfig import NXConfig
     from nxsession import NXSession
 
     host = raw_input ('Host: ')
@@ -324,7 +313,8 @@ if __name__ == '__main__':
     password = raw_input ('Password: ')
     session_type = raw_input ('Session type: ')
 
-    nc = NXClient (host, user, password)
+    config = NXConfig (host, user, password)
+    nc = NXClient (config)
 
     nc.connect ()
 
