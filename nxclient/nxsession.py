@@ -52,17 +52,38 @@ class NXSession:
         self.xcookie = f.read ().strip ()
         f.close ()
 
-        f = os.popen ('xprop -root | grep "^_XKB_RULES_NAMES(STRING)"')
-        tmp = f.read ()
-        f.close ()
+        # we're probably under a GNOME session, let's try to grab the
+        # info from gconf
+        if os.getenv ('GNOME_DESKTOP_SESSION_ID'):
+            f = os.popen ('gconftool-2 -g /desktop/gnome/peripherals/keyboard/xkb/model')
+            tmp = f.read ().strip ()
+            f.close ()
+
+            if tmp:
+                self.kbtype = tmp
+                
+                f = os.popen ('gconftool-2 -g /desktop/gnome/peripherals/keyboard/xkb/layouts | tr -d \'[\' | tr -d \']\' | cut -d \',\' -f 1')
+                tmp = f.read ().strip ()
+                f.close ()
+
+                if tmp:
+                    self.kbtype += '/' + tmp
+                else:
+                    self.kbtype = None
+
+        # else, try to grab the keyboard setting from X itself
+        if not self.kbtype:
+            f = os.popen ('xprop -root | grep "^_XKB_RULES_NAMES(STRING)"')
+            tmp = f.read ()
+            f.close ()
         
-        try:
-            tmp = tmp.split ('"')
-            self.kbtype = '%s/%s' % (tmp[3], tmp[5])
-        except AttributeError, IndexError:
-            # raise an exception warning about the keyboard not
-            # being detected?
-            pass
+            try:
+                tmp = tmp.split ('"')
+                self.kbtype = '%s/%s' % (tmp[3], tmp[5])
+            except AttributeError, IndexError:
+                # raise an exception warning about the keyboard not
+                # being detected?
+                pass
 
     def get_start_params (self):
         # FIXME: check if self.xcookie has contents, and raise
