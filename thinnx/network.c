@@ -42,9 +42,11 @@ read_line (gint fd)
   fd_set rfds;
   struct timeval tv;
 
-  gchar *buffer = g_malloc0 (sizeof(gchar)*2);
+  gchar *buffer = g_malloc (sizeof(gchar)*2);
   gchar tmp[1];
   gint count;
+
+  gint retval;
 
   FD_ZERO(&rfds);
   FD_SET(fd, &rfds);
@@ -52,17 +54,27 @@ read_line (gint fd)
   tv.tv_sec = 3;
   tv.tv_usec = 0;
 
+  buffer[0] = '\0';
+  buffer[1] = '\0';
+
   for (count = 2; tmp[0] != '\n'; count++)
     {
-      if (!select (fd+1, &rfds, NULL, NULL, &tv))
+      retval = select (fd+1, &rfds, NULL, NULL, &tv);
+
+      if (retval == 0 || retval == -1)
 	break;
       
-      read (fd, tmp, 1);
+      if (read (fd, tmp, 1) != 1)
+	break;
+
       buffer = g_realloc (buffer, sizeof(gchar)*count);
       buffer[count - 2] = tmp[0];
     }
   buffer[count - 2] = '\0';
-  
+
+  if (buffer[0] == '\0')
+    return NULL;
+
   return buffer;
 }
 
@@ -280,6 +292,8 @@ main (int argc, char **argv)
 	  {
 
 	    buffer = read_line (fconf_fd);
+	    if (!buffer)
+	      break;
 
 	    /* remove comments */
 	    tmp = g_strsplit (buffer, "#", 2);
@@ -406,8 +420,8 @@ main (int argc, char **argv)
 		drop_line (out);
 	      }
 	    else if (!strcmp (buffer, "NX> 208"))
-	      {
-		/* OK, authenticating... */
+	      { /* OK, authenticating... */
+		drop_line (out);
 	      }
 	    else if (!strcmp (buffer, "NX> 204"))
 	      {
