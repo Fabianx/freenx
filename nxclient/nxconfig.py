@@ -74,7 +74,7 @@ class NXConfig:
             conf[key] = value.strip ()
 
         self.host = conf['host']
-        self.port = conf['port']
+        self.port = int(conf['port'])
         self.username = conf['username']
         self.password = conf['password']
         self.sshkey = conf['sshkey']

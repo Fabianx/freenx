@@ -57,9 +57,26 @@ class NXGUI:
         self.main_window.connect ('delete-event', gtk.main_quit)
 
         self.user = get_widget ('user')
+        self.user.connect ('activate', self._connect_session_cb)
+
         self.password = get_widget ('password')
+        self.password.connect ('activate', self._connect_session_cb)
 
         session = get_widget ('session')
+        session.connect ('changed', self._session_changed_cb)
+        self.session = session
+
+        self._update_sessions ()
+
+        connect_btn = get_widget ('connect_btn')
+        connect_btn.connect ('clicked', self._connect_session_cb)
+        connect_btn.grab_focus ()
+
+        self.gui = gui
+
+    def _update_sessions (self):
+        session = self.session
+        
         cr = gtk.CellRendererText ()
         session.pack_start (cr, True)
         session.add_attribute (cr, 'text', 0)
@@ -70,13 +87,15 @@ class NXGUI:
             if s[-1] == '~':
                 continue
             iter = model.append (None)
-            print s
             model.set (iter, 0, s)
         session.set_model (model)
         session.set_active (0)
 
-        # should actually be bound to a signal connected to
-        # the session combobox
+
+    def _session_changed_cb (self, *args):
+        session = self.session
+        model = session.get_model ()
+
         iter = session.get_active_iter ()
         name = model.get (iter, 0)[0]
         self.config = NXConfig (name)
@@ -84,23 +103,16 @@ class NXGUI:
         self.user.set_text (self.config.username)
         self.password.set_text (self.config.password)
 
-        connect_btn = get_widget ('connect_btn')
-        connect_btn.connect ('clicked', self._connect_session_cb)
-
-        self.gui = gui
-
     def _connect_session_cb (self, *args):
+        config = self.config
+
         self.main_window.hide ()
         _update_gui ()
 
-        user = self.user.get_chars (0, -1)
-        password = self.password.get_chars (0, -1)
+        config.username = self.user.get_chars (0, -1)
+        config.password = self.password.get_chars (0, -1)
 
-        # FIXME: get name from the ComboBox (session)
-        config = None
-
-        client = NXClient(NXConfig (config))
-        
+        client = NXClient(config)
         self.client = client
 
         client.log = None
