@@ -2,7 +2,9 @@
 # -*- coding: utf-8 -*-
 
 # nxclient.py -- a simple client for FreeNX
-# Copyright (C) 2005 Marco Sinhoreli and Gustavo Noronha Silva
+#
+# Copyright (C) 2005 Instituto de Estudos e Pesquisas dos Trabalhadores
+# no Setor Energético, Marco Sinhoreli and Gustavo Noronha Silva
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
