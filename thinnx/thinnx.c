@@ -289,14 +289,17 @@ message_dialog (gchar *message)
 gchar*
 get_info_after_colon (gchar *buffer)
 {
-  gchar **split_str;
+  gchar *split_str;
   gchar *retval;
   
-  split_str = g_strsplit (buffer, ":", 1);
-  retval = g_strdup (split_str[1]);
-  printf ("%s: ", split_str[0]);
+  printf ("%s", buffer);
+
+  split_str = buffer+(strlen(buffer) - 1);
+  while (*(split_str-1) != ':')
+    *split_str--;
+
+  retval = g_strdup (split_str);
   g_strstrip (retval);
-  g_strfreev (split_str);
   
   return retval;
 }
