@@ -1,7 +1,7 @@
 /* thinnx.c -- a simple client for FreeNX
  *
  * Copyright (C) 2005 Instituto de Estudos e Pesquisas dos Trabalhadores
- * no Setor EnergÃ©tico, Marco Sinhoreli and Gustavo Noronha Silva
+ * no Setor Energético, Marco Sinhoreli and Gustavo Noronha Silva
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -575,6 +575,7 @@ main (int argc, char **argv)
 	    buffer = read_code (out);
 	    if (!strcmp (buffer, "NX> 205"))
 	      {
+		flush_buffer (buffer);
 		drop_line (out);
 		drop_line (out);
 		drop_chars (out, 56);
@@ -588,7 +589,7 @@ main (int argc, char **argv)
 	      }
 	    else if (!strcmp (buffer, "NX> 204"))
 	      {
-		message_dialog ("Falha na autenticaÃ§Ã£o inicial!\n"
+		message_dialog ("Falha na autenticação inicial!\n"
 				"Confira a chave privada.");
 		g_critical ("Failed to authenticate to SSH using the public key!\n");
 		exit (1);
