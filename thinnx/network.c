@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <errno.h>
 
 #include <sys/select.h>
 
@@ -118,21 +119,21 @@ input_dialog (gchar *message, gboolean visible)
   gtk_container_add (GTK_CONTAINER(dialog), vbox);
 
   label = gtk_label_new (message);
-  gtk_box_pack_start_defaults (vbox, label);
+  gtk_box_pack_start_defaults (GTK_BOX(vbox), label);
 
   entry = gtk_entry_new ();
   g_signal_connect (G_OBJECT(entry), "active",
 		    G_CALLBACK(gtk_main_quit), NULL);
   gtk_entry_set_visibility (GTK_ENTRY(entry), visible);
-  gtk_box_pack_start_defaults (vbox, entry);
+  gtk_box_pack_start_defaults (GTK_BOX(vbox), entry);
 
-  gtk_window_show_all (dialog);
+  gtk_widget_show_all (dialog);
 
   gtk_main ();
 
   retval = g_strdup (gtk_entry_get_text (GTK_ENTRY(entry)));
 
-  gtk_destroy (dialog);
+  gtk_widget_destroy (dialog);
   
   return retval;
 }
@@ -180,7 +181,7 @@ main (int argc, char **argv)
     {
       if (mkdir (confdir, 0777) == -1)
 	g_critical ("Could not create directory %s: %s\n", 
-		    confdir, perror (errno));
+		    confdir, strerror (errno));
     }
 
   sshkey = g_strdup_printf ("%s/.ssh/id_dsa", homedir);
@@ -288,7 +289,7 @@ main (int argc, char **argv)
   else
     protocol_error ();
 
-  passowrd = input_dialog ("Senha", FALSE);
+  password = input_dialog ("Senha", FALSE);
 
   buffer = read_code (out);
   if (!strcmp (buffer, "NX> 102"))
