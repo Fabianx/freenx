@@ -201,6 +201,8 @@ main (int argc, char **argv)
   gchar *type = g_strdup ("unix-gnome");
   gchar *cookie = NULL;
 
+  gboolean use_ssl = 0;
+
   gchar *link = g_strdup ("adsl");
   gchar *kbdtype = g_strdup ("pc104/us");
 
@@ -357,6 +359,11 @@ main (int argc, char **argv)
 	      {
 		g_free (session);
 		session = g_strdup (value);
+	      }
+	    else if (!strcmp ("ssl", key))
+	      {
+		if (!strcmp (value, "yes"))
+		    use_ssl = 1;
 	      }
 	    else if (!strcmp ("type", key))
 	      {
@@ -538,7 +545,7 @@ main (int argc, char **argv)
 	  flush_buffer (buffer);
 	  drop_chars (out, 1);
 
-	  cmdline = g_strdup_printf ("startsession --session=\"%s\" --type=\"%s\" --cache=\"8M\" --images=\"32M\" --cookie=\"%s\" --link=\"%s\" --kbtype=\"%s\" --nodelay=\"1\" --backingstore=\"never\" --geometry=\"%s\" --media=\"0\" --agent_server=\"\" --agent_user=\"\" --agent_password=\"\" --screeninfo=\"%s\"", session, type, cookie, link, kbdtype, geometry, screeninfo);
+	  cmdline = g_strdup_printf ("startsession --session=\"%s\" --type=\"%s\" --cache=\"8M\" --images=\"32M\" --cookie=\"%s\" --link=\"%s\" --kbtype=\"%s\" --nodelay=\"1\" --backingstore=\"never\" --geometry=\"%s\" --media=\"0\" --agent_server=\"\" --agent_user=\"\" --agent_password=\"\" --screeninfo=\"%s\" --encryption=\"%d\"", session, type, cookie, link, kbdtype, geometry, screeninfo, use_ssl);
 	  write_line (in, cmdline);
 	  g_free (cmdline);
 
@@ -585,7 +592,12 @@ main (int argc, char **argv)
       drop_line (out); /* 702 proxy ip */
       drop_line (out); /* 706 agent cookie */
       drop_line (out); /* 704 session cache */
-      drop_line (out); /* 707 ssl tunneling */
+      {
+	gchar *tmp = get_session_info ("NX> 707"); /* 707 ssl tunneling */
+	
+	use_ssl = atoi (tmp);
+	g_free (tmp);
+      }
       drop_line (out); /* 710 session status: running */
       drop_line (out); /* 1002 commit */
       drop_line (out); /* 1006 session status: running */
@@ -612,7 +624,10 @@ main (int argc, char **argv)
 	  }
 	g_free (dirname);
 
-	buffer = g_strdup_printf ("cookie=%s,root=%s/.nx,session=%s,id=%s,connect=%s:%s", pcookie, homedir, session, session_id, host, session_display);
+	if (use_ssl)
+	  buffer = g_strdup_printf ("cookie=%s,root=%s/.nx,session=%s,id=%s,listen=20000:%d", pcookie, homedir, session, session_id, session_display);
+	else
+	  buffer = g_strdup_printf ("cookie=%s,root=%s/.nx,session=%s,id=%s,connect=%s:%s", pcookie, homedir, session, session_id, host, session_display);
 
 	options = fopen (fname, "w");
 	fwrite (buffer, sizeof(char), strlen (buffer), options);
