@@ -51,6 +51,7 @@ flush_buffer (gchar *buffer)
 {
   g_print (buffer);
   g_free (buffer);
+  fflush (stdout);
 }
 
 gchar*
@@ -190,7 +191,7 @@ input_dialog (gchar **user, gchar **pass)
   gtk_window_set_position (GTK_WINDOW(dialog), GTK_WIN_POS_CENTER_ALWAYS);
   gtk_container_set_border_width (GTK_CONTAINER(dialog), 12);
   
-  vbox = gtk_vbox_new (FALSE, 10);
+  vbox = gtk_vbox_new (FALSE, 26);
   gtk_container_add (GTK_CONTAINER(dialog), vbox);
 
   pixmap = gdk_pixmap_create_from_xpm (dialog->window, NULL, NULL,
@@ -597,7 +598,9 @@ main (int argc, char **argv)
 		/* OK, authenticating... */
 	      }
 	    else if (!strcmp (buffer, "NX> 203") || 
-		     (!strcmp (buffer, "NX> 285")))
+		     (!strcmp (buffer, "NX> 285")) ||
+		     (!strcmp (buffer, "NX> 200")) ||
+		     (!strcmp (buffer, "NX> 202")))
 	      {
 		/* ignored stderr */
 	      }
@@ -615,6 +618,10 @@ main (int argc, char **argv)
 		else if (!strcmp (msg, "Connection refused"))
 		  message_dialog ("A conexão foi recusada!\n"
 				  "Verifique a porta.");
+		else if (!strcmp (msg, "Connection timed out"))
+		  message_dialog ("Tempo limite da conexão expirou!\n"
+				  "Verifique servidor e porta.");
+
 		flush_buffer (msg);
 		fprintf (stderr, "\n");
 		exit (1);
