@@ -1,0 +1,56 @@
+#!/bin/bash
+#
+# Simple wrapper for nxssh.
+#
+# Copyright (c) 2005 by Fabian Franz.
+#
+# License: GPL
+#
+
+# unset them first to avoid that we forward a "secret" key to the remote host
+unset SSH_AGENT_PID SSH_AUTH_SOCK
+
+NXSSH_REMOTE_HOST="$HOME/.ssh/nx/"$(echo "$@" | sed 's/.*nx@//g' | cut -d" " -f1)""
+
+# Are there keys for this server?
+
+if [ -e "$NXSSH_REMOTE_HOST" ]
+then
+	export SSH_AUTH_SOCK="$NXSSH_REMOTE_HOST.sock"
+	set -- "$@" -o "ForwardAgent yes"
+
+	# Check if there is already an agent running for this host
+
+	if [ -S "$SSH_AUTH_SOCK" ]
+	then
+		NXSSH_AGENT="yes"
+		# Is it still alive?
+		ssh-add -l >/dev/null 2>/dev/null 
+		[ $? -eq 2 ] && rm -f "$SSH_AUTH_SOCK"
+	fi
+
+	# So lets start one
+	if [ ! -S "$SSH_AUTH_SOCK" ]
+	then
+		ssh-agent -a "$SSH_AUTH_SOCK" >/dev/null 2>/dev/null
+
+		# Setup secret key(s)
+		if [ -d "$NXSSH_REMOTE_HOST" ]
+		then
+		(
+		
+			cd $NXSSH_REMOTE_HOST; 
+			for i in $(echo *)
+			do
+				[ -f $i ] || continue
+				ssh-add "$NXSSH_REMOTE_HOST/$i" </dev/null >/dev/null 2>/dev/null
+			done
+		
+		)
+		else
+			ssh-add "$NXSSH_REMOTE_HOST" </dev/null >/dev/null 2>/dev/null
+		fi
+	fi
+fi
+
+exec $(dirname $0)/nxssh.orig "$@"

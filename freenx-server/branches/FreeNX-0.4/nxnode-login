@@ -1,0 +1,66 @@
+#!/usr/bin/expect
+# nxnode-login: spawns and controls ssh 
+# Copyright (c) 2004 by Fabian Franz.
+# License: GPL, version 2
+#
+# CVS: $Id: nxnode-login,v 1.13 2005/07/27 14:34:59 fabianx Exp $
+#
+
+# Syntax: nxnode-login {ssh|su} user ssh-port executable command tosend
+
+set auth_method [lindex $argv 0]
+set user [lindex $argv 1]
+set port [lindex $argv 2]
+set executable [lindex $argv 3]
+set command [lindex $argv 4]
+set tosend [lindex $argv 5]
+catch {set tosend $env(NXNODE_TOSEND)}
+set command_ssh "ssh"
+catch {set command_ssh $env(COMMAND_SSH)}
+
+expect_user -re "(.*)\n" 
+set password $expect_out(1,string)
+
+set stty_init "raw icrnl -echo"
+
+if { "$auth_method"=="ssh" } { 
+	set pid [spawn -noecho $command_ssh -2 -x -l "$user" "127.0.0.1" -o "NumberOfPasswordPrompts 1" -p "$port" "$executable $command" ]
+} elseif { "$auth_method"=="su" } {
+	set pid [spawn -noecho su - "$user" -c "$executable $command" ]
+} else {
+	exit 1
+}
+
+while {1} {
+	expect {
+		"Are you sure you want to continue connecting (yes/no)?" { send "yes\r" }
+		"assword*:"  { sleep 0.3; send "$password\r" }
+		"Permission denied*" { exit 1 }
+		"su: Authentication failure" { exit 1 }
+		"NX> 1000 NXNODE - Version" { 
+			break
+		}
+	} 
+}
+
+if { "$tosend"!="" } { 
+	send "$tosend\r"
+}
+
+expect {
+	"NX> 716 finished" { }
+	"NX> 700" { 
+			set timeout -1
+			expect {
+				"NX> 1001 Bye." { exit 0 }
+				"NX> *" { exp_continue }
+			}
+			exit 0
+		  }
+	"NX> 716 Public key is already present in:" { }
+	"NX> 716 Public key added to:" { }
+	"NX> 716 Terminating session * on user request." { }
+	"NX> 716 Suspending session * on user request." { }
+	"NX> 500 Error: " { exit 1}
+}
+expect "NX> 1001 Bye."

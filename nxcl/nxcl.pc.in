@@ -1,0 +1,14 @@
+# nxcl pkg-config source file
+
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@/nxcl
+
+Name: nxcl
+Description: NX client library
+Version: @VERSION@
+Requires:
+Conflicts:
+Libs: -L${libdir} -lnxcl
+Cflags: -I${includedir}

@@ -1,0 +1,1 @@
+EXTRA_DIST = gtk.m4

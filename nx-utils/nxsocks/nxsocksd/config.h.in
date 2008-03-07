@@ -1,0 +1,139 @@
+
+/* Define if you want to run this program linked with SOCKS5 itself. */
+#undef HAVE_LIBSOCKS5
+
+/* Define to compile in tracing code */
+#undef DEBUG
+
+/* Define to enforce restricted connections */
+#undef NORELAX
+
+/* Define to enable calling external programs */
+#undef DO_SPAWN
+
+/* Define if on AIX 3.
+   System headers sometimes define this.
+   We just want to avoid a redefinition error message.  */
+#ifndef _ALL_SOURCE
+#undef _ALL_SOURCE
+#endif
+
+/* Define to empty if the keyword does not work.  */
+#undef const
+
+/* Define as __inline if that's what the C compiler calls it.  */
+#undef inline
+
+/* Define where seriously broken sys/socket.h emits a heap of bogus
+   warnings. (AIX 4.1) */
+#ifdef _AIX
+#ifndef _NO_PROTO
+#define _NO_PROTO
+#endif
+#endif
+
+/* Define as the return type of signal handlers (int or void).  */
+#undef RETSIGTYPE
+
+/* Define as int if not available in the system headers.  */
+#undef sig_atomic_t
+
+/* Define if the setvbuf function takes the buffering type as its second
+   argument and the buffer pointer as the third, as on System V
+   before release 3.  */
+#undef SETVBUF_REVERSED
+
+/* Define to `unsigned' if <sys/types.h> doesn't define.  */
+#undef size_t
+
+/* Define if you have the <sys/select.h> header file.  */
+#undef HAVE_SYS_SELECT_H
+
+/* Define if you have the <strings.h> header file.  */
+#undef HAVE_STRINGS_H
+
+/* Define if you have the <termios.h> header file.  */
+#undef HAVE_TERMIOS_H
+
+/* Define if you have ANSI C header files.  */
+#undef STDC_HEADERS
+
+/* Define if you have the memset() function. */
+#undef HAVE_MEMSET
+
+/* Define if you have the sigaction() function. */
+#undef HAVE_SIGACTION
+
+/* Define if you have the vfork() function. */
+#undef HAVE_VFORK
+
+/* Define if you have the waitpid() function. */
+#undef HAVE_WAITPID
+
+/* Define if you have the wait3() function. */
+#undef HAVE_WAIT3
+
+/* Define if you have the wait4() function. */
+#undef HAVE_WAIT4
+
+/* Define if you have the strrchr() function. */
+#undef HAVE_STRRCHR
+
+/* Define if you have the strdup() function. */
+#undef HAVE_STRDUP
+
+/* Define if resolv.h doesn't include stdio.h but uses FILE. */
+#undef RESOLV_NEEDS_STDIO
+
+/* Define to the struct state type in resolv.h (state or __res_state). */
+#undef RES_STATE
+
+/* Define if double connect() in nonblocking mode is broken. */
+#undef NONBLOCK_ONCE
+
+/* Define if nonblocking sockets do not work at all. */
+#undef NONBLOCK_NONE
+
+/* Define if on Linux with libc4. */
+#undef HAVE_LINUX_LIBC4
+
+/* Define to path of ping program. */
+#undef PATH_PING
+
+/* Define to path of traceroute program. */
+#undef PATH_TRACE
+
+
+/* No user-serviceable parts below. */
+
+/* set by configure */
+#undef VERSION
+#undef DATE
+
+/* Try to use the client's port for UDP. This is okay and some
+   protocols seem to need it. This is the same as the NEC server's
+   option of the same name. */
+#define USECLIENTSPORT
+/* Try to use the client's port for TCP connect. This idea is badly broken.
+   It looks like I haven't seen any client that needs it yet. */
+#undef  USECPORT_CONNECT
+/* Try to use the client's port for TCP bind. This is now default
+   behaviour unless the client requests a reserved port. Some clients
+   need it and RFC 1928 does neither say it's right nor it's wrong. */
+#define USECPORT_BIND
+
+
+#ifdef HAVE_LIBSOCKS5
+#define SOCKS
+#include <socks.h>
+#endif
+
+#ifdef SETVBUF_REVERSED
+#define setunbuf(f) setvbuf((f), _IONBF, NULL, 0)
+#else
+#define setunbuf(f) setvbuf((f), NULL, _IONBF, 0)
+#endif
+
+#ifndef HAVE_VFORK
+#define vfork fork
+#endif

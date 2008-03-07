@@ -1,0 +1,16 @@
+#!/bin/sh
+
+if [ -z "$NXCUPS_PORT" -a -z "$NXSAMBA_PORT" ]
+then
+	echo "nxredir: Redirect standard ports to nxproxy"
+	echo ""
+	echo "Usage: export NXCUPS_PORT='where_cups_is_running'"
+	echo "       export NXSAMBA_PORT='where_samba_is_running'"
+	exit 0
+fi
+
+LD_PRELOAD="/usr/lib/libnxredir.so.0:$LD_PRELOAD"
+export LD_PRELOAD
+
+# invoke the program with the args given
+exec "$@"

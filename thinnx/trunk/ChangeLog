@@ -1,0 +1,5 @@
+2005-03-13  Gustavo Noronha Silva  <gns@gnome.org>
+
+	* thinnx gains today a new build system that goes
+	  beyond a simple and dumb build.sh shell script
+

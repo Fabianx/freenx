@@ -1,0 +1,51 @@
+Okay, here we go.
+
+We need:
+
+- KDE 3.5.5 or install kio_nxfish ourselves using the provided sources.
+- ssh access to the nx server we want to use nxfish on.
+- netpipes installed on the client computer.
+
+Now we do:
+
+Client:
+	- Start nx session
+	- Look into ~/.nx/S-<yoursession>/options for the right cookie.
+
+	- Start:
+	
+	$ ./nx-fishsrv.sh <the directory you want to share> - <some port>
+	Please provide password: <cookie>
+	Starting nx-fishsrv.pl ...
+
+	Note:
+	   
+	   You will have complete access from the remote session to the directory 
+	   that you share.
+
+	   It should not contain any symlinks to things you don't want to share.
+
+	   Perhaps a symlink detection is later built into nx-fishrv.pl.
+
+Server:
+	- Install nxfish to /usr/bin or somewhere else in your PATH.
+	- Make sure that (Free)NX does export NXSESSIONID.
+
+	  You might need to use a custom startkde script, where you export it yourself using something
+	  like:
+
+	  for i in $( echo $HOME/.nx/C-*$(echo $DISPLAY | cut -d: -f2)-* | tr ' ' '\n' )
+	  do
+	      [ -f "$i/pids/agent" ] && break
+	  done
+	  export NXSESSIONID=$i
+
+	- Just open konqueror and browse to nxfish:/
+
+	- Done :)
+
+That's it folk.
+
+Please enjoy.
+
+	Fabian - January 2007

@@ -1,0 +1,8 @@
+DISTCLEANFILES = *~
+
+SUBDIRS = m4 thinnx
+DIST_SUBDIRS = $(SUBDIRS)
+
+ACLOCAL_AMFLAGS = -I m4
+
+EXTRA_DIST = config.rpath

@@ -1,0 +1,14 @@
+0.0.3-nx-3
+	* Added cookie authentication.
+	* Added sample script for starting the nx-fishsrv.pl.
+	* Added sample nxfish script with authentication via encrypted session cookie.
+	* Fixed a security problem. If nx-fishsrv.pl was running with . as
+	  path it was possible to access "..".
+	* Added a changelog. :)
+	* Added a README.
+
+0.0.3-nx-2
+	* Prepared KDE patch.
+
+0.0.3-nx-1
+	* Original version.

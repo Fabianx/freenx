@@ -1,0 +1,390 @@
+#!/bin/bash
+
+# Coypright (c) 2004-2005 by Fabian Franz <freenx@fabian-franz.de>.
+#                    2005 by Jon Severinsson <jonno@users.berlios.de>.
+#
+# License: GNU GPL, version 2
+#
+# CVS: $Id: nxsetup,v 1.31 2005/08/02 17:29:59 fabianx Exp $ 
+#
+
+HELP="no"
+INSTALL="no"
+SETUP_NOMACHINE_KEY="no"
+SETUP_UID=""
+SETUP_GID=""
+LOCAL_USER_OPTION=""
+# luseradd / luserdel are only available on RedHat
+[ -f /etc/redhat-release ] && LOCAL_USER_OPTION="yes"
+SETUP_LOCAL_USER="no"
+CLEAN="no"
+UNINSTALL="no"
+PURGE="no"
+SETUP_SSH2_KEY="no"
+BUILD_KNOWN_HOSTS="yes"
+
+while [ "$1" ]
+do
+	case "$1" in
+		--help) HELP="yes"; shift ;;
+		--install) INSTALL="yes"; shift ;;
+		--setup-nomachine-key) SETUP_NOMACHINE_KEY="yes"; shift ;;
+		--ssh2) SETUP_SSH2_KEY="yes"; shift;;
+		--dont-build-known-hosts) BUILD_KNOWN_HOSTS="no"; shift;;
+		--uid) SETUP_UID=$2; shift 2 ;;
+		--gid) SETUP_GID=$2; shift 2 ;;
+		--localuser) SETUP_LOCAL_USER="yes"; shift;;
+		--clean) CLEAN="yes"; shift ;;
+		--uninstall) UNINSTALL="yes"; shift ;;
+		--purge) PURGE="yes"; shift ;;
+		--) shift ; break ;;
+		*) echo "Invalid flag $1" ; HELP="yes"; shift ; break ;;
+	esac
+done
+
+#Check for invalid combinations:
+[ "$SETUP_LOCAL_USER" = "yes" -a -z "$LOCAL_USER_OPTION" ] && HELP="yes"
+[ "$INSTALL" = "yes" -a "$UNINSTALL" = "yes" ] && HELP="yes"
+[ "$INSTALL" = "no" -a "$UNINSTALL" = "no" ] && HELP="yes"
+[ "$INSTALL" = "yes" -a "$CLEAN" = "no" -a "$PURGE" = "yes" ] && HELP="yes"
+[ "$UNINSTALL" = "yes" ] && [ "$SETUP_NOMACHINE_KEY" = "yes" -o -n "$SETUP_UID" -o "$CLEAN" = "yes" ] && HELP="yes"
+[ "$UNINSTALL" = "yes" -a "$CLEAN" = "yes" ] && HELP="yes"
+[ "$SETUP_SSH2_KEY" = "yes" -a "$SETUP_NOMACHINE_KEY" = "no" ] && HELP="yes"
+
+if [ "$HELP" = "yes" ]
+then
+	echo "nxsetup - Setup the FreeNX server."
+	echo "Syntax: nxsetup --help"
+	echo "        nxsetup --install [--setup-nomachine-key] [--uid <nummber>] [--clean [--purge]]"
+	echo "        nxsetup --uninstall [--purge]"
+	echo
+	echo "  --help                 Displays this help message"
+	echo "  --install              Install nessesary files and add the nx user"
+	echo "  --setup-nomachine-key  Allow login with the key shipped with the NoMachine"
+	echo "                         client. This is not as secure, but it simplifies the "
+	echo "                         configuration of clients."
+	echo "                         Use this option at your own risk."
+	echo "  --ssh2		       Additionally create commercial pubkey-support, beware"
+	echo "			       own _commercial_ ssh2-key is not supported!."
+	echo "  --uid <number>         The nx user will be given the uid <number>."
+	echo "  --gid <number>         The nx user will be given the gid <number>."
+	[ -n "$LOCAL_USER_OPTION" ] && echo "  --localuser            The nx user will be created locally using luseradd, for use in NIS and NISplus environments."
+	echo "  --clean                Performs an uninstall prior to the installation"
+	echo "  --uninstall            Remove log and session files, as well as the nx user"
+	echo "  --purge                Uninstall will remove extra configuration files and ssh"
+	echo "                         keys as well. Note that node.conf will always be saved."
+	exit 0
+fi
+#Undocumented
+#
+#    --dont-build-known-hosts		For system without /etc/ssh/ssh_host_key.rsa.pub and anyway
+#					expect should handle nx-users known-hosts keys so why borther
+#					in nxsetup?
+
+if [ $UID -ne 0 ]
+then
+	echo "You need to be root to use this program." 
+	exit 1
+fi
+
+# Read the config file
+. $(PATH=$(cd $(dirname $0) && pwd):$PATH which nxloadconfig) --
+
+nx_user_exists()
+{
+	if [ "$SETUP_LOCAL_USER" = "yes" ]
+	then
+		egrep "^nx:" /etc/passwd >/dev/null
+	else
+		getent passwd nx >/dev/null
+	fi
+}	
+
+# Tries to add a system user
+useradd_nx()
+{
+	# In any case create the basedir of the HOME directory before, 
+	# because useradd will fail to make more than one directory
+	mkdir -p $(dirname "$NX_HOME_DIR")
+
+	# Is it a debian?
+	if [ -f /etc/debian_version -a -z "$SETUP_UID" ]
+	then
+		USERADD_OPTIONS="--system --home $NX_HOME_DIR --shell $PATH_BIN/nxserver"
+		[ -n "$SETUP_GID" ] && USERADD_OPTIONS="--gid $SETUP_GID $USERADD_OPTIONS"
+		adduser $USERADD_OPTIONS nx
+	# no, its a "normal" useradd
+	else
+		USERADD_OPTIONS="-d $NX_HOME_DIR -s $PATH_BIN/nxserver"
+		[ -n $SETUP_GID ] && USERADD_OPTIONS="-g $SETUP_GID $USERADD_OPTIONS"
+		# uid specified?
+		if [ -n "$SETUP_UID" ]
+		then
+			USERADD_OPTIONS="-u $SETUP_UID $USERADD_OPTIONS"
+		# Is it a SuSE?
+		elif [ -f /etc/SuSE-release ]
+		then
+			USERADD_OPTIONS="-r $USERADD_OPTIONS"
+		fi
+
+		if [ "$SETUP_LOCAL_USER" = "yes" ]
+		then
+			[ -n "$SETUP_GID" ] && /usr/sbin/lgroupadd -g $SETUP_GID nx
+			luseradd $USERADD_OPTIONS nx
+		else
+			useradd $USERADD_OPTIONS nx
+		fi
+
+		
+	fi
+}
+
+install_nx()
+{
+	set -e
+	
+	if [ "$(pidof sshd 2>/dev/null)" = "" ]
+	then 
+		echo -n "Starting ssh service ..."
+		# Generate Host keys if they are not available, yet
+		[ -e /etc/ssh/ssh_host_rsa_key ] || $COMMAND_SSH_KEYGEN -q -t rsa -f /etc/ssh/ssh_host_rsa_key -C '' -N ''
+		[ -e /etc/ssh/ssh_host_dsa_key ] || $COMMAND_SSH_KEYGEN -q -t dsa -f /etc/ssh/ssh_host_dsa_key -C '' -N ''
+		[ -x /etc/init.d/sshd ] && /etc/init.d/sshd start
+		[ -x /etc/init.d/ssh ] && /etc/init.d/ssh start
+		echo "done"
+	fi
+	
+	echo -n "Setting up $NX_ETC_DIR ..."
+	mkdir -p $NX_ETC_DIR
+	touch $NX_ETC_DIR/passwords $NX_ETC_DIR/passwords.orig
+	chmod 600 $NX_ETC_DIR/passwords $NX_ETC_DIR/passwords.orig
+	echo "done"
+	
+	if [ ! -f $NX_ETC_DIR/users.id_dsa ]
+	then
+		$COMMAND_SSH_KEYGEN -f $NX_ETC_DIR/users.id_dsa -t dsa -N ""
+	fi
+	
+	echo -n "Setting up $NX_SESS_DIR ..."
+	mkdir -p $NX_SESS_DIR/closed $NX_SESS_DIR/running $NX_SESS_DIR/failed
+	chmod 700 $NX_SESS_DIR/*
+	echo "done"
+	
+	echo -n "Setting up $NX_LOGFILE ..."
+	mkdir -p $(dirname "$NX_LOGFILE")
+	touch "$NX_LOGFILE"
+	chmod 600 "$NX_LOGFILE"
+	echo "done"
+	
+	if ! nx_user_exists
+	then
+		echo -n "Setting up user nx ..."
+		useradd_nx
+		echo "done"
+	fi
+	
+	if [ "$ENABLE_NOMACHINE_FORWARD" = "1" -a -x "$NOMACHINE_SERVER" ]
+	then
+		echo -n "Setting up NoMachine forwarding ..."
+		usermod -s "$PATH_BIN/nxserver" -d "$NOMACHINE_NX_HOME_DIR" nx
+		echo "done"
+	fi
+	
+	echo -n "Setting up known_hosts and $SSH_AUTHORIZED_KEYS ..."
+	
+	SETUP_NX_KEY="no"
+	
+	mkdir -p $NX_HOME_DIR/.ssh
+	chmod 700 $NX_HOME_DIR/ $NX_HOME_DIR/.ssh
+	
+	if [ ! -f $NX_HOME_DIR/.ssh/$SSH_AUTHORIZED_KEYS ]
+	then
+		SETUP_NX_KEY="yes"
+		if [ "$SETUP_NOMACHINE_KEY" = "yes" ]
+		then
+			cat << EOF >$NX_HOME_DIR/.ssh/$SSH_AUTHORIZED_KEYS
+no-port-forwarding,no-X11-forwarding,no-agent-forwarding,command="$PATH_BIN/nxserver" ssh-dss AAAAB3NzaC1kc3MAAACBAJe/0DNBePG9dYLWq7cJ0SqyRf1iiZN/IbzrmBvgPTZnBa5FT/0Lcj39sRYt1paAlhchwUmwwIiSZaON5JnJOZ6jKkjWIuJ9MdTGfdvtY1aLwDMpxUVoGwEaKWOyin02IPWYSkDQb6cceuG9NfPulS9iuytdx0zIzqvGqfvudtufAAAAFQCwosRXR2QA8OSgFWSO6+kGrRJKiwAAAIEAjgvVNAYWSrnFD+cghyJbyx60AAjKtxZ0r/Pn9k94Qt2rvQoMnGgt/zU0v/y4hzg+g3JNEmO1PdHh/wDPVOxlZ6Hb5F4IQnENaAZ9uTZiFGqhBO1c8Wwjiq/MFZy3jZaidarLJvVs8EeT4mZcWxwm7nIVD4lRU2wQ2lj4aTPcepMAAACANlgcCuA4wrC+3Cic9CFkqiwO/Rn1vk8dvGuEQqFJ6f6LVfPfRTfaQU7TGVLk2CzY4dasrwxJ1f6FsT8DHTNGnxELPKRuLstGrFY/PR7KeafeFZDf+fJ3mbX5nxrld3wi5titTnX+8s4IKv29HJguPvOK/SI7cjzA+SqNfD7qEo8= root@nettuno
+EOF
+			chmod 600 $NX_HOME_DIR/.ssh/$SSH_AUTHORIZED_KEYS
+		else
+			# generate a new key, backup the old and copy it to $SSH_AUTHORIZED_KEYS
+			$PATH_BIN/nxkeygen
+		fi
+	fi
+
+	# commercial ssh2-server uses other authentification-files
+	# as they are more or less static, I don't integrated these variable
+	# in node.conf, you have to change them here, if you like
+	SSH2_AUTHORIZATION="authorization"
+	SSH2_PUBKEY="nx_user.id.pub"
+	SSH2_HOME_DIR="$NX_HOME_DIR/.ssh2"
+	if [ ! -f "${SSH2_HOME_DIR}/$SSH2_PUBKEY" -a "$SETUP_SSH2_KEY" = "yes" -a "$SETUP_NOMACHINE_KEY" = "yes" ]
+	then
+		mkdir -p $SSH2_HOME_DIR
+		chmod 700 $SSH2_HOME_DIR
+		
+		cat >  ${SSH2_HOME_DIR}/$SSH2_PUBKEY <<EOF
+---- BEGIN SSH2 PUBLIC KEY ----
+Comment: "1024-bit DSA, converted from OpenSSH by root@localhost"
+AAAAB3NzaC1kc3MAAACBAJe/0DNBePG9dYLWq7cJ0SqyRf1iiZN/IbzrmBvgPTZnBa5FT/
+0Lcj39sRYt1paAlhchwUmwwIiSZaON5JnJOZ6jKkjWIuJ9MdTGfdvtY1aLwDMpxUVoGwEa
+KWOyin02IPWYSkDQb6cceuG9NfPulS9iuytdx0zIzqvGqfvudtufAAAAFQCwosRXR2QA8O
+SgFWSO6+kGrRJKiwAAAIEAjgvVNAYWSrnFD+cghyJbyx60AAjKtxZ0r/Pn9k94Qt2rvQoM
+nGgt/zU0v/y4hzg+g3JNEmO1PdHh/wDPVOxlZ6Hb5F4IQnENaAZ9uTZiFGqhBO1c8Wwjiq
+/MFZy3jZaidarLJvVs8EeT4mZcWxwm7nIVD4lRU2wQ2lj4aTPcepMAAACANlgcCuA4wrC+
+3Cic9CFkqiwO/Rn1vk8dvGuEQqFJ6f6LVfPfRTfaQU7TGVLk2CzY4dasrwxJ1f6FsT8DHT
+NGnxELPKRuLstGrFY/PR7KeafeFZDf+fJ3mbX5nxrld3wi5titTnX+8s4IKv29HJguPvOK
+/SI7cjzA+SqNfD7qEo8=
+---- END SSH2 PUBLIC KEY ----
+EOF
+		echo "Key $SSH2_PUBKEY" >> ${SSH2_HOME_DIR}/$SSH2_AUTHORIZATION
+		echo "Options no-port-forwarding,no-x11-forwarding,no-agent-forwarding,command=\"$PATH_BIN/nxserver\"" >> ${SSH2_HOME_DIR}/$SSH2_AUTHORIZATION
+		chmod 600 ${SSH2_HOME_DIR}/$SSH2_AUTHORIZATION ${SSH2_HOME_DIR}/$SSH2_PUBKEY
+	fi
+	
+	if [ ! -f $NX_HOME_DIR/.ssh/known_hosts -a "$BUILD_KNOWN_HOSTS" = "yes" ]
+	then
+		echo -n "127.0.0.1 " > $NX_HOME_DIR/.ssh/known_hosts
+		cat /etc/ssh/ssh_host_rsa_key.pub >> $NX_HOME_DIR/.ssh/known_hosts
+	fi
+	
+	echo "done"
+	
+	echo -n "Setting up permissions ..."
+	chown -R nx:root $NX_SESS_DIR
+	chown -R nx:root $NX_ETC_DIR
+	chown -R nx:root $NX_HOME_DIR
+	chown nx:root "$NX_LOGFILE"
+	echo "done"
+}
+
+uninstall_nx() 
+{
+	if nx_user_exists
+	then
+		echo -n "Removing user nx ..."
+		
+		if [ "$SETUP_LOCAL_USER" = "yes" ]
+		then
+			luserdel nx
+		else
+			userdel nx
+		fi
+			
+		echo "done"
+	fi
+	
+	if [ -e "$NX_SESS_DIR" ]
+	then
+		echo -n "Removing session database ..."
+		rm -f -r $NX_SESS_DIR/closed $NX_SESS_DIR/running $NX_SESS_DIR/failed 2>/dev/null
+		rmdir -p $NX_SESS_DIR 2>/dev/null
+		echo "done"
+	fi
+	
+	if [ -e "$NX_LOGFILE" ] 
+	then
+		echo -n "Removing logfile ..."
+		rm -f "$NX_LOGFILE" 2>/dev/null
+		rmdir -p $(dirname "$NX_LOGFILE") 2>/dev/null
+		echo "done"
+	fi
+	
+	if [ "$PURGE" = "yes" -a -e "$NX_HOME_DIR" ]
+	then
+		echo -n "Removing nx home directory ..."
+		rm -f -r "$NX_HOME_DIR" 2>/dev/null
+		rmdir -p $(dirname "$NX_HOME_DIR") 2>/dev/null
+		echo "done"
+	fi
+	
+	if [ "$PURGE" = "yes" -a -e "$NX_ETC_DIR" ]
+	then
+		echo -n "Removing configuration files ..."
+		rm -f "$NX_ETC_DIR/passwords" "$NX_ETC_DIR/passwords.orig" "$NX_ETC_DIR/users.id_dsa" "$NX_ETC_DIR/users.id_dsa.pub" 2>/dev/null
+		for i in `ls $NX_ETC_DIR/*.node.conf 2>/dev/null` ;
+		do
+			rm -f "$i" 2>/dev/null;
+		done
+		echo "done"
+	fi
+}
+
+if [ "$INSTALL" = "yes" ]
+then
+	#Perform cleanup?
+	[ "$CLEAN" = "yes" ] && uninstall_nx
+	
+	install_nx
+	
+	echo "Ok, nxserver is ready."
+	echo 
+	if [ "$ENABLE_SSH_AUTHENTICATION" = "1" -o "$ENABLE_SU_AUTHENTICATION" = "1" ]
+	then
+		echo "PAM authentication enabled:"
+		if [ "$ENABLE_USER_DB" = "1" ]
+		then
+			echo "  Users will be able to login with their normal passwords,"
+			echo "  but they have to be registered in the nx database to do so."
+			echo "  To add new users to the nx database do:"
+			echo "    nxserver --adduser <username>"
+		else
+			echo "  All users will be able to login with their normal passwords."
+		fi
+		echo
+		if [ "$ENABLE_SSH_AUTHENTICATION" = "1" -a "$ENABLE_SU_AUTHENTICATION" = "1" ]
+		then
+			echo "  Both SSH and SU authentication is enabled."
+			echo "  This does work, but is redundant."
+			echo "  Please check if this is really what you intended."
+		elif [ "$ENABLE_SSH_AUTHENTICATION" = "1" ]
+		then
+			echo "  PAM authentication will be done through SSH."
+			echo "  Please ensure that SSHD on localhost accepts password authentication."
+		else
+			echo "  PAM authentication will be done through SU."
+			echo "  Please ensure that the user "nx" is a member of the wheel group."
+		fi
+	else
+		echo "PAM authentication disabled."
+		echo "  Only users in the nx database will be able to log in."
+		echo
+		echo "  To add new users to the nx database do:"
+		echo "    nxserver --adduser <username>"
+		echo "  Afterwards change the password with:"
+		echo "    nxserver --passwd <username>"
+	fi
+	echo
+	echo "  You can change this behaviour in the $NX_ETC_DIR/node.conf file."
+	
+	if [ "$SETUP_NOMACHINE_KEY" = "no" -a "$SETUP_NX_KEY" = "yes" ]
+	then
+		echo
+		echo "Warning: Clients will not be able to login to this server with the standard key."
+		echo "         Please replace /usr/NX/share/client.id_dsa.key on all clients you want"
+		echo "         to use with $NX_HOME_DIR/.ssh/client.id_dsa.key"
+		echo "         and protect it accordingly."
+		echo
+		echo "         If you really want to use the NoMachine key please remove"
+		echo "         '$NX_HOME_DIR/.ssh/$SSH_AUTHORIZED_KEYS'"
+		echo "         and then run this script with the --setup-nomachine-key parameter."
+	fi
+	
+	echo "Have Fun!"
+elif [ "$UNINSTALL" = "yes" ]
+then
+	uninstall_nx
+	
+	echo "Ok, nxserver is uninstalled"
+	echo 
+	if [ "$PURGE" = "yes" ]
+	then
+		echo "To complete the uninstallation process, remove the nx scripts in $PATH_BIN"
+		echo "and the $NX_ETC_DIR/node.conf configuration file."
+	else
+		echo "To complete the uninstallation process, remove the nx scripts in $PATH_BIN"
+		echo
+		echo "Configuration files and ssh keys are saved in case you would like to reinstall"
+		echo "freenx at a later time. To remove them, please run 'nxsetup --uninstall --purge'"
+	fi
+fi

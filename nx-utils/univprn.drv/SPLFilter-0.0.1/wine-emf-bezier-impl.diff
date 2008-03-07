@@ -1,0 +1,231 @@
+diff -ur ../gdi32.old2/enhmfdrv/enhmetafiledrv.h ./enhmfdrv/enhmetafiledrv.h
+--- ../gdi32.old2/enhmfdrv/enhmetafiledrv.h	2007-01-28 11:33:21.000000000 +0100
++++ ./enhmfdrv/enhmetafiledrv.h	2007-01-30 06:26:45.000000000 +0100
+@@ -61,6 +61,10 @@
+ extern BOOL     EMFDRV_Arc( PHYSDEV dev, INT left, INT top, INT right,
+                             INT bottom, INT xstart, INT ystart, INT xend,
+                             INT yend );
++extern BOOL     EMFDRV_ArcTo( PHYSDEV dev, INT left, INT top, INT right,
++                            INT bottom, INT xstart, INT ystart, INT xend,
++                            INT yend );
++
+ extern BOOL     EMFDRV_BeginPath( PHYSDEV dev );
+ extern BOOL     EMFDRV_BitBlt( PHYSDEV devDst, INT xDst, INT yDst,
+                                INT width, INT height, PHYSDEV devSrc,
+@@ -105,8 +109,11 @@
+                                     const INT* counts, UINT polys);
+ extern BOOL     EMFDRV_PolyPolyline( PHYSDEV dev, const POINT* pt,
+                                      const DWORD* counts, DWORD polys);
+-extern BOOL     EMFDRV_Polygon( PHYSDEV dev, const POINT* pt, INT count );
+ extern BOOL     EMFDRV_Polyline( PHYSDEV dev, const POINT* pt,INT count);
++extern BOOL     EMFDRV_PolyBezier( PHYSDEV dev, const POINT* pt, DWORD count );
++extern BOOL     EMFDRV_Polygon( PHYSDEV dev, const POINT* pt, INT count );
++extern BOOL     EMFDRV_PolyBezierTo( PHYSDEV dev, const POINT* pt, DWORD count );
++extern BOOL     EMFDRV_PolylineTo( PHYSDEV dev, const POINT* pt, DWORD count);
+ extern BOOL     EMFDRV_Rectangle( PHYSDEV dev, INT left, INT top,
+                                   INT right, INT bottom);
+ extern BOOL     EMFDRV_RestoreDC( PHYSDEV dev, INT level );
+diff -ur ../gdi32.old2/enhmfdrv/graphics.c ./enhmfdrv/graphics.c
+--- ../gdi32.old2/enhmfdrv/graphics.c	2007-01-09 16:42:47.000000000 +0100
++++ ./enhmfdrv/graphics.c	2007-01-30 06:25:24.000000000 +0100
+@@ -80,7 +80,6 @@
+     return TRUE;
+ }
+ 
+-
+ /***********************************************************************
+  *           EMFDRV_ArcChordPie
+  */
+@@ -197,6 +196,16 @@
+ }
+ 
+ /***********************************************************************
++ *           EMFDRV_Arc
++ */
++BOOL
++EMFDRV_ArcTo( PHYSDEV dev, INT left, INT top, INT right, INT bottom,
++	    INT xstart, INT ystart, INT xend, INT yend )
++{
++    return EMFDRV_ArcChordPie( dev, left, top, right, bottom, xstart, ystart,
++			       xend, yend, EMR_ARCTO );
++}
++/***********************************************************************
+  *           EMFDRV_Pie
+  */
+ BOOL
+@@ -351,6 +360,8 @@
+ static BOOL
+ EMFDRV_Polylinegon( PHYSDEV dev, const POINT* pt, INT count, DWORD iType )
+ {
++    EMFDRV_PDEVICE *physDev = (EMFDRV_PDEVICE *)dev;
++    POINT tpt;
+     EMRPOLYLINE *emr;
+     DWORD size;
+     INT i;
+@@ -362,10 +373,22 @@
+     emr->emr.iType = iType;
+     emr->emr.nSize = size;
+ 
+-    emr->rclBounds.left = emr->rclBounds.right = pt[0].x;
+-    emr->rclBounds.top = emr->rclBounds.bottom = pt[0].y;
++    if (iType == EMR_POLYLINETO || iType == EMR_POLYBEZIERTO)
++    {
++        i = 0;
++        GetCurrentPositionEx(physDev->hdc, &tpt);
++        emr->rclBounds.left = emr->rclBounds.right = tpt.x;
++        emr->rclBounds.top = emr->rclBounds.bottom = tpt.y;
++    
++    }
++    else
++    {
++        i = 1;
++        emr->rclBounds.left = emr->rclBounds.right = pt[0].x;
++        emr->rclBounds.top = emr->rclBounds.bottom = pt[0].y;
++    }
+ 
+-    for(i = 1; i < count; i++) {
++    for(; i < count; i++) {
+         if(pt[i].x < emr->rclBounds.left)
+ 	    emr->rclBounds.left = pt[i].x;
+ 	else if(pt[i].x > emr->rclBounds.right)
+@@ -398,6 +421,8 @@
+ static BOOL
+ EMFDRV_Polylinegon16( PHYSDEV dev, const POINT* pt, INT count, DWORD iType )
+ {
++    EMFDRV_PDEVICE *physDev = (EMFDRV_PDEVICE *)dev;
++    POINT tpt;
+     EMRPOLYLINE16 *emr;
+     DWORD size;
+     INT i;
+@@ -416,10 +441,22 @@
+     emr->emr.iType = iType;
+     emr->emr.nSize = size;
+ 
+-    emr->rclBounds.left = emr->rclBounds.right = pt[0].x;
+-    emr->rclBounds.top = emr->rclBounds.bottom = pt[0].y;
++    if (iType == EMR_POLYLINETO16 || iType == EMR_POLYBEZIERTO16)
++    {
++        i = 0;
++        GetCurrentPositionEx(physDev->hdc, &tpt);
++        emr->rclBounds.left = emr->rclBounds.right = tpt.x;
++        emr->rclBounds.top = emr->rclBounds.bottom = tpt.y;
++    
++    }
++    else
++    {
++        i = 1;
++        emr->rclBounds.left = emr->rclBounds.right = pt[0].x;
++        emr->rclBounds.top = emr->rclBounds.bottom = pt[0].y;
++    }
+ 
+-    for(i = 1; i < count; i++) {
++    for(; i < count; i++) {
+         if(pt[i].x < emr->rclBounds.left)
+ 	    emr->rclBounds.left = pt[i].x;
+ 	else if(pt[i].x > emr->rclBounds.right)
+@@ -456,6 +493,21 @@
+ }
+ 
+ /**********************************************************************
++ *          EMFDRV_PolyBezier
++ */
++
++/* FIXME: The BBox could be a bit too large, but there is no easy approximation function 
++ *        known. */
++BOOL
++EMFDRV_PolyBezier( PHYSDEV dev, const POINT* pt, DWORD count )
++{
++    if(count < 4 || ((count-4) % 3) != 0) return FALSE;
++    if( EMFDRV_Polylinegon16( dev, pt, count, EMR_POLYBEZIER16 ) )
++        return TRUE;
++    return EMFDRV_Polylinegon( dev, pt, count, EMR_POLYBEZIER );
++}
++
++/**********************************************************************
+  *          EMFDRV_Polygon
+  */
+ BOOL
+@@ -467,6 +519,32 @@
+     return EMFDRV_Polylinegon( dev, pt, count, EMR_POLYGON );
+ }
+ 
++/**********************************************************************
++ *          EMFDRV_PolyBezierTo
++ */
++
++/* FIXME: The BBox could be a bit too large, but there is no easy approximation function 
++ *        known. */
++BOOL
++EMFDRV_PolyBezierTo( PHYSDEV dev, const POINT* pt, DWORD count )
++{
++    if(count < 3 || (count % 3) != 0) return FALSE;
++    if( EMFDRV_Polylinegon16( dev, pt, count, EMR_POLYBEZIERTO16 ) )
++        return TRUE;
++    return EMFDRV_Polylinegon( dev, pt, count, EMR_POLYBEZIERTO );
++}
++
++
++/**********************************************************************
++ *          EMFDRV_PolylineTo
++ */
++BOOL
++EMFDRV_PolylineTo( PHYSDEV dev, const POINT* pt, DWORD count )
++{
++    if( EMFDRV_Polylinegon16( dev, pt, count, EMR_POLYLINETO16 ) )
++        return TRUE;
++    return EMFDRV_Polylinegon( dev, pt, count, EMR_POLYLINETO );
++}
+ 
+ /**********************************************************************
+  *          EMFDRV_PolyPolylinegon
+diff -ur ../gdi32.old2/enhmfdrv/init.c ./enhmfdrv/init.c
+--- ../gdi32.old2/enhmfdrv/init.c	2007-01-28 11:34:23.000000000 +0100
++++ ./enhmfdrv/init.c	2007-01-30 06:21:02.000000000 +0100
+@@ -38,7 +38,7 @@
+     NULL,                            /* pAlphaBlend */
+     NULL,                            /* pAngleArc */
+     EMFDRV_Arc,                      /* pArc */
+-    NULL,                            /* pArcTo */
++    EMFDRV_ArcTo,                    /* pArcTo */
+     EMFDRV_BeginPath,                /* pBeginPath */
+     EMFDRV_BitBlt,                   /* pBitBlt */
+     NULL,                            /* pChoosePixelFormat */
+@@ -92,14 +92,14 @@
+     EMFDRV_PaintRgn,                 /* pPaintRgn */
+     EMFDRV_PatBlt,                   /* pPatBlt */
+     EMFDRV_Pie,                      /* pPie */
+-    NULL,                            /* pPolyBezier */
+-    NULL,                            /* pPolyBezierTo */
++    EMFDRV_PolyBezier,               /* pPolyBezier */
++    EMFDRV_PolyBezierTo,             /* pPolyBezierTo */
+     NULL,                            /* pPolyDraw */
+     EMFDRV_PolyPolygon,              /* pPolyPolygon */
+     EMFDRV_PolyPolyline,             /* pPolyPolyline */
+     EMFDRV_Polygon,                  /* pPolygon */
+     EMFDRV_Polyline,                 /* pPolyline */
+-    NULL,                            /* pPolylineTo */
++    EMFDRV_PolylineTo,               /* pPolylineTo */
+     NULL,                            /* pRealizeDefaultPalette */
+     NULL,                            /* pRealizePalette */
+     EMFDRV_Rectangle,                /* pRectangle */
+@@ -129,7 +129,7 @@
+     NULL,                            /* pSetDeviceGammaRamp */
+     EMFDRV_SetMapMode,               /* pSetMapMode */
+     EMFDRV_SetMapperFlags,           /* pSetMapperFlags */
+-    NULL,                            /* pSetPixel */
++    EMFDRV_SetPixel,                 /* pSetPixel */
+     NULL,                            /* pSetPixelFormat */
+     EMFDRV_SetPolyFillMode,          /* pSetPolyFillMode */
+     EMFDRV_SetROP2,                  /* pSetROP2 */
+diff -ur ../gdi32.old2/gdi_private.h ./gdi_private.h
+--- ../gdi32.old2/gdi_private.h	2007-01-09 16:42:47.000000000 +0100
++++ ./gdi_private.h	2007-01-30 06:27:04.000000000 +0100
+@@ -165,7 +165,7 @@
+     BOOL     (*pPolyPolyline)(PHYSDEV,const POINT*,const DWORD*,DWORD);
+     BOOL     (*pPolygon)(PHYSDEV,const POINT*,INT);
+     BOOL     (*pPolyline)(PHYSDEV,const POINT*,INT);
+-    BOOL     (*pPolylineTo)(PHYSDEV,const POINT*,INT);
++    BOOL     (*pPolylineTo)(PHYSDEV,const POINT*,DWORD);
+     UINT     (*pRealizeDefaultPalette)(PHYSDEV);
+     UINT     (*pRealizePalette)(PHYSDEV,HPALETTE,BOOL);
+     BOOL     (*pRectangle)(PHYSDEV,INT,INT,INT,INT);

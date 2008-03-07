@@ -1,0 +1,67 @@
+#!/bin/bash
+#
+# nxprint - Prints a list of available drivers or printers
+# 
+# Copyright (c) 2005 by Fabian Franz <freenx@fabian-franz.de>
+#
+# License: GPL, version 2
+#
+#
+
+# disable foomatic by default
+FOOMATIC="no"
+
+HELP="no"
+DRIVERS="no"
+PRINTERS="no"
+
+while [ "$1" ]
+do
+        case "$1" in
+                --help) HELP="yes"; shift ;;
+                --drivers|-d) DRIVERS="yes"; shift ;;
+                --printers|-l) PRINTERS="yes"; shift ;;
+                --) shift ; break ;;
+                *) echo "Invalid flag $1" ; HELP="yes"; shift ; break ;;
+        esac
+done
+
+[ "$DRIVERS" = "no" -a "$PRINTERS" = "no" ] && HELP="yes"
+
+if [ "$HELP" = "yes" ]
+then
+        echo "nxprint - Prints a list of available drivers or printers"
+	echo ""
+        echo "Syntax: nxprint --help"
+        echo "        nxprint --drivers"
+        echo "        nxprint --printes"
+        echo
+        echo "  --drivers                prints a list of available CUPS drivers"
+        echo "  --printers               prints a list of available CUPS printers"
+        exit 0
+fi
+
+if [ "$DRIVERS" = "yes" ]
+then
+	echo "driver|Raw|Raw Queue|raw"
+	{ 
+        cd /usr/share/cups/model
+        awk -F '"' '/*Manufacturer:/ { a[FILENAME]=$2 }
+                    /*NickName:/ { b[FILENAME]=$2 } 
+                    END { 
+                       for (i in a) 
+                          print "driver|" (a[i]=="ESP"?substr(b[i],0,index(b[i]," ")-1):a[i]) "|"b[i]"|"i
+                    }' *.ppd
+        } | sort
+
+	if [ $FOOMATIC="yes" ]
+	then
+		# TODO: Add support for foomatic-style ppds
+		:
+	fi
+fi
+
+if [ "$PRINTERS" = "yes" ]
+then
+	lpstat -p | awk '{ print $1 "|" $2 }'
+fi

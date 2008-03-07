@@ -1,0 +1,94 @@
+body {
+	background: #FFFF70;
+	padding-left: 5%;
+	padding-right: 5%;
+	font-family: "Trebuchet MS", Verdana, Arial, sans-serif;
+	color: black;
+}
+
+div.header {
+	background: #FF8614;
+	border: 1px solid #666633;
+	padding: 1em;
+	padding-left: 2em;
+	margin-bottom: 1em;
+}
+
+div.header h1 {
+	margin: 0em;
+	font-size:2em;
+	color: white;
+}
+
+div.header p {
+	margin: 0em;
+	margin-top: 1em;
+	line-height:1.5em;
+}
+
+a {
+	color: #FF8614;
+	text-decoration: none;
+}
+
+a:visited {
+	color: #FFB066;
+}
+
+a:hover {
+	text-decoration: underline;
+	color: #FF8614;
+}
+
+div.navigation {
+	position: absolute;
+	width: 13%;
+	line-height: 1.5em;
+}
+
+h2, h3 {
+	font-size: 1em;
+}
+
+div.navigation h2 {
+	margin: 0px;
+	padding-left:0.5em;
+}
+
+div.navigation a {
+	display: block;
+	border-top: 1px dotted black;
+	padding-left: 1.5em;
+	font-size: 0.8em;
+}
+
+div.content {
+	position: absolute;
+	right:0px;
+	width: 81%;
+	line-height: 1.5em;
+}
+
+div.box {
+	background-color: white;
+	border: 1px solid #666633;
+	margin-bottom: 1em;
+}
+
+div.content div.box {
+	padding: 1em;
+	padding-top: 0.5em;
+}
+
+div.content h2 {
+	border-bottom: 1px dotted black;
+	margin-top: 0px;
+}
+
+div.content p, div.content dt, div.content dd {
+	font-size: 0.8em;
+}
+
+em {
+	border-bottom: 2px dashed black;
+}

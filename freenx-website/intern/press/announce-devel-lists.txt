@@ -1,0 +1,15 @@
+Malaga, 30th August, aKademy conference,
+
+The FreeNX team is proud to announce the availability of a new development mailing list, so that interested developers can focus and exchange on development of FreeNX and associated programs.
+
+Interested developers can join freenx-devel@lists.berlios.de through the BerliOS project page:
+
+http://developer.berlios.de/projects/freenx/ [FIXME]
+
+FreeNX-knx@kde.org will remain as a mailing lists for user questions and general exchange on the FreeNX movement.
+
+Fabian, project leader of FreeNX says: "I hope that this step will speedup the FreeNX development and encourage more people to participate actively in the FreeNX development."
+
+For the FreeNX team,
+
+Fabian

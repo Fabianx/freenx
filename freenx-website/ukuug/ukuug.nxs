@@ -1,0 +1,101 @@
+<!DOCTYPE NXClientSettings>
+<NXClientSettings application="nxclient" version="1.3" >
+<group name="Advanced" >
+<option key="Cache size" value="8" />
+<option key="Cache size on disk" value="32" />
+<option key="Current keyboard" value="false" />
+<option key="Custom keyboard layout" value="de" />
+<option key="Disable TCP no-delay" value="false" />
+<option key="Disable ZLIB stream compression" value="false" />
+<option key="Enable SSL encryption" value="true" />
+<option key="Restore cache" value="true" />
+<option key="StreamCompression" value="" />
+</group>
+<group name="Environment" >
+<option key="CUPSD path" value="/usr/sbin/cupsd" />
+</group>
+<group name="General" >
+<option key="Automatic reconnect" value="true" />
+<option key="Backingstore" value="when_requested" />
+<option key="Command line" value="/home/fabian/startit-ukuug.sh" />
+<option key="Custom Unix Desktop" value="application" />
+<option key="Desktop" value="console" />
+<option key="Link speed" value="modem" />
+<option key="Remember password" value="false" />
+<option key="Resolution" value="fullscreen" />
+<option key="Resolution height" value="600" />
+<option key="Resolution width" value="800" />
+<option key="Server host" value="82.165.41.51" />
+<option key="Server port" value="22" />
+<option key="Session" value="unix" />
+<option key="Use default image encoding" value="1" />
+<option key="Use render" value="true" />
+<option key="Use taint" value="true" />
+<option key="Virtual desktop" value="true" />
+<option key="XAgent encoding" value="true" />
+<option key="displaySaveOnExit" value="true" />
+<option key="xdm broadcast port" value="177" />
+<option key="xdm list host" value="localhost" />
+<option key="xdm list port" value="177" />
+<option key="xdm mode" value="server decide" />
+<option key="xdm query host" value="localhost" />
+<option key="xdm query port" value="177" />
+</group>
+<group name="Images" >
+<option key="Disable JPEG Compression" value="0" />
+<option key="Disable all image optimisations" value="false" />
+<option key="Image Compression Type" value="1" />
+<option key="Image Encoding Type" value="0" />
+<option key="Image JPEG Encoding" value="false" />
+<option key="JPEG Quality" value="0" />
+<option key="RDP optimization for low-bandwidth link" value="false" />
+<option key="Reduce colors to" value="" />
+<option key="Use PNG Compression" value="false" />
+<option key="VNC images compression" value="0" />
+<option key="Windows Image Compression" value="1" />
+</group>
+<group name="Login" >
+<option key="Auth" value="EMPTY_PASSWORD" />
+<option key="Public Key" value="-----BEGIN DSA PRIVATE KEY-----
+MIIBuwIBAAKBgQCXv9AzQXjxvXWC1qu3CdEqskX9YomTfyG865gb4D02ZwWuRU/9
+C3I9/bEWLdaWgJYXIcFJsMCIkmWjjeSZyTmeoypI1iLifTHUxn3b7WNWi8AzKcVF
+aBsBGiljsop9NiD1mEpA0G+nHHrhvTXz7pUvYrsrXcdMyM6rxqn77nbbnwIVALCi
+xFdHZADw5KAVZI7r6QatEkqLAoGBAI4L1TQGFkq5xQ/nIIciW8setAAIyrcWdK/z
+5/ZPeELdq70KDJxoLf81NL/8uIc4PoNyTRJjtT3R4f8Az1TsZWeh2+ReCEJxDWgG
+fbk2YhRqoQTtXPFsI4qvzBWct42WonWqyyb1bPBHk+JmXFscJu5yFQ+JUVNsENpY
++Gkz3HqTAoGANlgcCuA4wrC+3Cic9CFkqiwO/Rn1vk8dvGuEQqFJ6f6LVfPfRTfa
+QU7TGVLk2CzY4dasrwxJ1f6FsT8DHTNGnxELPKRuLstGrFY/PR7KeafeFZDf+fJ3
+mbX5nxrld3wi5titTnX+8s4IKv29HJguPvOK/SI7cjzA+SqNfD7qEo8CFDIm1xRf
+8xAPsSKs6yZ6j1FNklfu
+-----END DSA PRIVATE KEY-----
+" />
+<option key="User" value="fabian" />
+</group>
+<group name="Services" >
+<option key="Audio" value="false" />
+<option key="IPPPort" value="631" />
+<option key="IPPPrinting" value="true" />
+<option key="Shares" value="false" />
+</group>
+<group name="VNC Session" >
+<option key="Display" value="0" />
+<option key="Password" value="" />
+<option key="Remember" value="false" />
+<option key="Server" value="0" />
+</group>
+<group name="Windows Session" >
+<option key="Application" value="" />
+<option key="Authentication" value="1" />
+<option key="Color Depth" value="8" />
+<option key="Domain" value="" />
+<option key="Image Cache" value="true" />
+<option key="Password" value="" />
+<option key="Remember" value="false" />
+<option key="Run application" value="false" />
+<option key="Server" value="" />
+<option key="User" value="" />
+</group>
+<group name="share chosen" >
+<option key="Share number" value="0" />
+</group>
+</NXClientSettings>

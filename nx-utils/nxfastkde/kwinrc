@@ -1,0 +1,7 @@
+[Windows]
+AnimateMinimize[$i]=false
+AnimateShade[$i]=false
+MoveMode[$i]=Transparent
+MoveResizeMaximizedWindows[$i]=false
+ResizeMode[$i]=Transparent
+ShadeHover[$i]=false

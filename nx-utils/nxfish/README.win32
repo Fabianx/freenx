@@ -1,0 +1,15 @@
+There is now also a windows version available.
+
+You need to install perl and create a start bat like:
+
+@start perl C:\\PATH\\TO\\nx-fishsrv-win32.pl "C:\\Folder\\Shared\\" "" "<port>"
+
+You also need to install file to C:\\Programme\\GnuWin32\\bin\file.exe.
+
+Or tweak the path in nx-fishsrv-win32.pl.
+
+Enjoy!
+
+cu
+
+Fabian

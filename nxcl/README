@@ -1,0 +1,83 @@
+
+  nxcl: A library for building NX clients.
+
+  Seb James. July-September 2007. seb@esfnet.co.uk
+
+Based on nxclientlib by George Wright, but with all dependencies on Qt
+removed and the Qt build system replaced with GNU autotools.
+
+doxygen is required if you want to build source documentation.
+
+The library code is in nxcl-release/lib/. 
+
+A binary, called nxcl - the "nxcl dbus daemon" is built in
+nxcl-release/nxcl/. nxcl links to libnxcl and can negotiate an nx
+connection.
+
+nxcl-release/test/ contains some test programs. notQtTest tests some
+of the features of the notQt classes in nxcl-release/lib/. libtest
+is a simple command line NX client linking straight to the libnxcl
+library. nxcmd is a second command line NX client, but it launches
+nxcl, then sends session data there and allows nxcl to negotiate the
+NX connection. This could be extended into quite a complete command
+line NX client.
+
+A GTK+ NX client called nxlaunch is distributed separately. Nxlaunch
+uses the nxcl daemon, though it would be quite possible to write a GTK
+client which links directly to the nxcl library. 
+
+You should study nxcmd.cpp and nxlaunch if you are interested in
+writing an NX client using a different widget system (say Windows, Qt,
+Tk, etc) which uses the Nxcl dbus daemon.
+
+Look at nxcl.cpp/h if you want to write an NX client which links
+directly to libnxcl.
+
+Building nxcl
+-------------
+
+Prerequisites are:
+
+* libXcomp from NoMachine, provided by the nxcomp package.
+* nxssh from NoMachine
+* nxproxy from NoMachine
+
+(These three NX components all should be from the 3.0.0 series. You can
+obtain them from NoMachine's servers at http://www.nomachine.com/sources.php)
+
+And (only) for the standalone dbus client you'll need:
+
+* libdbus-1 - http://dbus.freedesktop.org/ Note that you'll need the dbus
+daemon to be running to use the nxcl standalone binary, but NOT if you link
+your client directly to libnxcl.so*
+
+The D-Bus client can be disabled with the --without-nxcmd flag to configure.
+
+If you have doxygen on your system, (imperfect) documentation will be
+generated from the source header files.
+
+Documentation can be disabled with the --without-doxygen flag to configure.
+
+Compile and install libXcomp, nxssh and nxproxy following the instructions
+in the readme file for each package. You can install the nxssh and nxproxy
+in any of the following locations:
+
+/bin
+/usr/bin
+/usr/local/bin
+/usr/NX/bin
+_or_ the same place that you will install the nxcl binary, determined from
+your --prefix directive to the configure script.
+
+If you checked out the svn code, you need to do:
+
+autoreconf -is
+
+to create the configure script (from configure.ac) and the Makefiles (from
+the Makefile.am files).
+
+Then configure, make and install in the usual way:
+
+./configure [--enable-debug-output] [--prefix=/opt/myNXstuff]
+make
+make install

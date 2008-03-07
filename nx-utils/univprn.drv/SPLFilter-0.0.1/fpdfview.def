@@ -1,0 +1,16 @@
+; fpdfview.def : Declares the module parameters for the DLL.
+
+LIBRARY      "fpdfview"
+
+EXPORTS
+        FPDF_CloseDocument @29
+        FPDF_ClosePage @30
+        FPDF_GetLastError @33
+        FPDF_GetPageCount @34
+        FPDF_GetPageHeight @35
+        FPDF_GetPageWidth @38
+        FPDF_LoadDocument @40
+        FPDF_LoadMemDocument @41
+        FPDF_LoadPage @42
+        FPDF_RenderPage @44
+        FPDF_UnlockDLL @47

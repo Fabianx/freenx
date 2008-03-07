@@ -1,0 +1,224 @@
+.\" -*- nroff -*-
+.\" $Id: nxsocksd.1.in,v 1.3 1999/05/13 22:28:11 olaf Exp $
+.\"
+.\" Configuration options
+.ds D @DEBUG@
+.ds N @NORELAX@
+.ds F @DO_SPAWN@
+.\"
+.TH USOCKSD 1 "HaDiNet Software"
+.SH NAME
+nxsocksd \- user specific SOCKS5 daemon
+.SH SYNOPSIS
+.B nxsocksd
+[
+.BI \-p " port"
+]
+.if !'\*N'1' [
+.BI \-a " accepthost"
+.if !'\*N'1' ] [
+.BI \-u " udphost"
+.if !'\*N'1' ]
+[
+.BI \-i " identuser"
+]
+.if !'\*N'1' [
+.BI \-U " authuser"
+.if !'\*N'1' ]
+.if '\*D'1' \{\
+[
+.BI \-d " debuglevel"
+]\}
+.SH DESCRIPTION
+.B nxsocksd
+is a lightweight SOCKS5 daemon. It is intended to be run by the user
+who wants to use the SOCKS service and facilitates the use of an
+.B ssh
+TCP port redirection to run the SOCKS protocol over.
+.B nxsocksd
+is useful in situations where the user has access to a host with less
+restricted connectivity than his own machine, or where the user\'s
+own machine is on an insecure network and all connections should be
+encrypted.
+.B nxsocksd
+implements all documented commands, the address types
+.I IPv4 Address
+and
+.I Domain Name
+(for domain names that resolve to IPv4 addresses) and the
+authentication methods
+.I No Authentication
+and
+.IR "Username/Password" .
+.SH OPTIONS
+.TP
+.BI \-p " port"
+Port to listen on for connections. On a multi-user system, each user
+has to specify his own port instead of relying on the standard port.
+Default is 1080, nonetheless.
+.TP
+.BI \-a " accepthost"
+Specify that connections are only accepted from this host.
+.ie '\*N'1' This option must be present.
+.el Default: no restriction.
+It is possible to specify more than one allowed host, they have to be
+separated with a comma (and nothing else). Hosts are given either as
+IP address or as resolvable name.
+.TP
+.BI \-u " udphost"
+Specify that UDP packets to be relayed come from this host instead of
+the default (the connecting host). Why this violation of RFC 1928 is
+necessary is explained below under "Usage".
+.if '\*N'1' This option must be present.
+It is possible to specify more than one host.
+.TP
+.BI \-i " identuser"
+Specify that for each incoming connection an
+.B identd
+query will be made and the connection rejected if it does not resolve
+to the given user name. Note that
+.B identd
+is not a reliable authentication service.
+.TP
+.BI \-U " authuser"
+Specify that
+.I Username/Password
+authentication be used with the given user name. The password is read
+from standard input.
+.ie '\*N'1' This option must be present.
+.el Without this option, no authentication is requested from clients.
+.if '\*D'1' \{\
+.TP
+.BI \-d " debuglevel"
+Specify the amount of tracing output. See the source for the meaning
+of the numbers.\}
+.SH USAGE
+The intended usage for running SOCKS5 over an
+.B ssh
+connection is as follows:
+.PP
+.nf
+\fCssh -L1080:relayhost:12345 relayhost\\
+.br
+ "nxsocksd -p12345 -arelayhost -umyhost -Ufred"\fP
+.fi
+.PP
+where
+.I relayhost
+is the host where
+.B nxsocksd
+runs and
+.I myhost
+is the client's host. Note the coincidence of the host name and port
+number arguments. After this connection is established,
+.I myhost
+can be used as its own SOCKS5 server. The SOCKS connections, and
+therefore all TCP data, will be encrypted. UDP data is not sent over
+the encrypted SOCKS connection and is not encrypted; it goes directly
+from
+.I myhost
+to
+.IR relayhost ,
+while the corresponding SOCKS connection seems to come from
+.I relayhost
+itself. This is the reason why a regular SOCKS5 server can not be used
+for UDP in this situation (and the original incentive for writing
+.BR nxsocksd ).
+The SOCKS clients will use password authentication as user
+.IR fred.
+The password to use is read from standard input.
+Neither user name nor password need to coincide with the real user
+name and password on any of the machines involved.
+.PP
+.B nxsocksd
+terminates when it encounters EOF on standard input. All other input
+on stdin is ignored. If the password should be read from a file
+instead of standard input, the proper way of invocation is
+.PP
+.nf
+\fCcat ~/.socks-password - |\\
+ ssh -L1080:relayhost:12345 relayhost\\
+.br
+ "nxsocksd -p12345 -arelayhost -umyhost -Ufred"\fP
+.fi
+.PP
+.B nxsocksd
+does not spawn any child processes,
+.if '\*F'1' \{\
+except for the extended
+.B ping
+and
+.B traceroute
+commands, \}
+it does not detach from the
+controlling terminal and does produce output on the standard output
+and error channels.
+.SH DIAGNOSTICS
+Messages about new connections, operating parameters and statistics
+are printed on standard output. Messages about connection failures are
+printed on standard error.
+.if '\*D'1' \{\
+Depending on the
+.B \-d
+argument, more tracing is printed on standard output. \}
+.SH SEE ALSO
+.BR ssh (1),
+.BR "RFC 1928:" " SOCKS Protocol Version 5"
+.SH BUGS
+Most of the permission and sanity checks described in RFC 1928 are not
+implemented. This may be considered a feature.
+.PP
+Nonblocking I/O is used where applicable. On some systems, where
+nonblocking I/O does not work, new connections in progress will
+temporarily suspend data transfer on existing connections. The same
+applies to diagnostic output if the standard output and standard error
+channels run on a socket or pipe which can block.
+.PP
+.B nxsocksd
+does not fully support multi-homed servers. Support for multi-homed
+clients may depend on the client's SOCKS library.
+.PP
+UDP relaying does not work in the following case:
+Multiple or no addresses are given with the
+.BI \-u
+argument, and the client does not send any packets (it only receives),
+and the client binds its socket to address 0.
+.PP
+When multiple addresses are given with the
+.BI \-u
+argument, UDP relaying between those hosts does or does not work,
+depending on the exact sequence of packets. It is
+assumed that all allowed clients connect to each other directly.
+.PP
+There should be a more elegant method of killing an
+.B nxsocksd
+started via
+.B ssh
+than the EOF handling.
+.SH NOTES
+The
+.B ping
+and
+.B traceroute
+utilities do not work with SOCKS because they use the ICMP protocol.
+The reference implementation SOCKS
+daemon by NEC includes undocumented commands for these applications.
+.ie '\*F'1' \{\
+.B nxsocksd
+supports these by calling the
+.B ping
+or
+.B traceroute
+programs on the host where it runs. \}
+.el \{\
+These are not supported by this configuration of
+.BR nxsocksd . \}
+.SH VERSION
+@VERSION@ as of @DATE@.
+.SH AUTHOR
+Olaf Titz <olaf@bigred.inka.de>.
+.SH COPYING
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version
+2 of the License, or (at your option) any later version.

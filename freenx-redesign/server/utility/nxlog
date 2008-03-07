@@ -1,0 +1,111 @@
+#!/bin/bash
+
+# nxlog - Provides functions for logging to syslog
+#
+# Copyright 2007 Google Inc.
+# All Rights Reserved.
+# Author: diamond@google.com (Stephen Shirley)
+#
+# License: GNU GPL, version 2
+#
+# Used configuration keys:
+#
+# Used internal subfunctions:
+#
+# Used internal variables:
+#
+# @var LOG_LEVEL Maximum level messages to log
+#
+# Used internal components:
+#
+# Used external programs:
+#
+# @ext logger - a shell command interface to the syslog(3) system log module
+#
+# Accepted protocol requests from client:
+#
+# Used protocol responses to client:
+#
+# FAQ-Questions:
+#
+# SVN: $Id$
+#
+
+LOG_EMERG=0
+LOG_ALERT=1
+LOG_CRIT=2
+LOG_ERR=3
+LOG_WARNING=4
+LOG_NOTICE=5
+LOG_INFO=6
+LOG_DEBUG=7
+
+
+log()
+{
+	PRIORITY="$1"
+	if [ "$LOG_LEVEL" -ge "$PRIORITY" ]
+	then
+		shift
+		[ "$1" = "-n" ] && shift
+		ARGS="$@"
+		[ -n "$ARGS" ] || ARGS="No arguments supplied to log()"
+		logger -p "syslog.$PRIORITY" -t "$SCRIPT_NAME" -- "$ARGS"
+	fi
+}
+
+
+log_tee()
+{
+	PRIORITY="$1"
+	while read -r; do
+		[ -n "$REPLY" ] && log "$PRIORITY" "$REPLY"
+		echo "$REPLY"
+	done
+}
+
+
+echo_x()
+{
+	echo "$@"
+	case "$NX_LOG_PROG" in
+		"nxserver") prefix="(s>c)" ;;
+		"nxnode") prefix="(n>s)" ;;
+		*) prefix="(?>?)" ;;
+	esac
+        log $LOG_INFO "$prefix $@"
+}
+
+
+read_x()
+{
+	read -t 10 "$@"
+	case "$NX_LOG_PROG" in
+		"nxserver") prefix="(s<c)" ;;
+		"nxnode") prefix="(n<s)" ;;
+		*) prefix="(?<?)" ;;
+	esac
+        log $LOG_INFO "$prefix $REPLY"
+}
+
+
+read_x_prompt() 
+{
+	echo_x -n "$1"
+	shift
+	read_x "$@"
+}
+
+
+if [ "$#" = "0" -a "$SCRIPT_NAME" = "nxlog" ]
+then
+	while read
+	do
+		log $line # no "" here to have it split up in different levels
+	done
+else
+	log "$@"
+fi
+
+
+# vim: ts=8 noexpandtab sw=8 softtabstop=0

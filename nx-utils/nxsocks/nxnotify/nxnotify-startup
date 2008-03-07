@@ -1,0 +1,15 @@
+#!/bin/sh
+#
+# Simple Wrapper script for dnotify / nxnotify.
+#
+# Copyright (c) 2005 by Fabian Franz.
+#
+# License: GPL, version 2.
+#
+#
+
+# Create the reference timestamp.
+touch ~/.nx/notify-ref
+
+# Now lets get notified.
+dnotify -C ~/.nx -e nxnotify

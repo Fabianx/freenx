@@ -1,0 +1,69 @@
+INTRODUCTION
+------------
+
+This is the FreeNX server package.
+
+DEPENDENCIES
+------------
+
+It depends on:
+
+- NX sources
+- X11 libraries
+- sshd
+- expect
+- netcat
+
+NOTE
+----
+
+This tarball is intented mainly for distributions, which want to use FreeNX as building the other OpenSource NX components is quite difficult.
+
+In the following sections it is outlined how to install FreeNX as soon as you've build all open source components. 
+
+HOWTO MANUALLY INSTALL
+----------------------
+
+You must apply the gentoo-nomachine.diff and then copy the files to /usr/NX/bin and /usr/NX/lib.
+
+You can use the following schema to do the install to /usr/NX/:
+
+NXPREFIX=/usr/NX
+mkdir -p ${NXPREFIX}/lib ${NXPREFIX}/bin
+
+# Libraries
+cp -a nx-X11/lib/X11/libX11.so* ${NXPREFIX}/lib
+cp -a nx-X11/lib/Xext/libXext.so* ${NXPREFIX}/lib
+cp -a nx-X11/lib/Xrender/libXrender.so* ${NXPREFIX}/lib
+cp -a nxcomp/libXcomp.so* ${NXPREFIX}/lib
+cp -a nxcompext/libXcompext.so* ${NXPREFIX}/lib
+
+# binaries
+cp -a nx-X11/programs/Xserver/nxagent ${NXPREFIX}/bin
+cp -a nxproxy/nxproxy ${NXPREFIX}/bin
+cp -a nxdesktop/nxdesktop ${NXPREFIX}/bin
+cp -a nxviewer/nxviewer/nxviewer ${NXPREFIX}/bin
+cp -a nxviewer/nxpasswd/nxpasswd ${NXPREFIX}/bin
+
+# windows-keymaps for nxdesktop RDP-sessions and keyboard layout != us
+cd nxdesktop
+make installkeymaps
+
+# scripts
+cp -a freenx*/nxnode ${NXPREFIX}/bin
+cp -a freenx*/nxserver ${NXPREFIX}/bin
+cp -a freenx*/nxsetup ${NXPREFIX}/bin
+cp -a freenx*/nxkeygen ${NXPREFIX}/bin
+cp -a freenx*/nxnode-login ${NXPREFIX}/bin
+cp -a freenx*/nxloadconfig ${NXPREFIX}/bin
+cp -a freenx*/nxprint ${NXPREFIX}/bin
+cp -a freenx*/nxclient ${NXPREFIX}/bin
+
+# config file
+cp -a freenx*/node.conf.sample ${NXPREFIX}/etc/
+
+You should also install the nxclient from NoMachine or also copy the nxclient program from freenx. 
+
+Then you need to run 'nxsetup --install' and follow the instructions given.
+
+If you use 1.5.0 as backend be sure to set ENABLE_1_5_0_BACKEND to 1 in node.conf or nxloadconfig.

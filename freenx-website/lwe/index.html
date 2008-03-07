@@ -1,0 +1,193 @@
+<!--
+/**************************************************************************/
+/*                                                                        */
+/* Copyright (c) 2004, 2005 NoMachine, http://www.nomachine.com.          */
+/*                                                                        */
+/* NXAPPLET, NX protocol compression and NX extensions to this software   */
+/* are copyright of NoMachine. Redistribution and use of the present      */
+/* software is allowed according to terms specified in the file LICENSE   */
+/* which comes in the source distribution.                                */
+/*                                                                        */
+/* Check http://www.nomachine.com/licensing.html for applicability.       */
+/*                                                                        */
+/* NX and NoMachine are trademarks of Medialogic S.p.A.                   */
+/*                                                                        */
+/* All rights reserved.                                                   */
+/*                                                                        */
+/**************************************************************************/
+
+This file is provided as an example, you can freely personalize it to fit
+your needs.
+-->
+
+<HTML>
+<HEAD>
+  <META HTTP-EQUIV="expires" CONTENT="0">
+  <META HTTP-EQUIV="Pragma" CONTENT="no-cache">
+  <META HTTP-EQUIV="Cache-Control" CONTENT="no-cache">
+  <TITLE>The future of NX! - Linux World Conference & Expo San Francisco 2005</TITLE>
+
+</HEAD>
+
+
+  <BODY>
+
+    <SCRIPT LANGUAGE="Javascript1.1">
+ <!-- hide JavaScript from non-JavaScript browsers
+
+
+  SOWIN = (navigator.userAgent.toLowerCase().indexOf("win") > -1) ? 1 : 0;
+  SOMAC = (navigator.userAgent.toLowerCase().indexOf("mac") > -1) ? 1 : 0;
+  SOLIN = (navigator.userAgent.toLowerCase().indexOf("linux") > -1) ? 1 : 0;
+  SOSOL = (navigator.userAgent.toLowerCase().indexOf("Solaris") > -1) ? 1 : 0;
+  SOALT = (!SOWIN && !SOMAC && !SOLIN && !SOSOL) ? 1 : 0;
+  var agt=navigator.userAgent.toLowerCase();
+  var is_nav = ((agt.indexOf('mozilla')!=-1) && (agt.indexOf('spoofer')==-1) &&
+               (agt.indexOf('compatible') == -1) && (agt.indexOf('opera')==-1) &&
+               (agt.indexOf('webtv')==-1) && (agt.indexOf('hotjava')==-1));
+
+  var is_ie = ((agt.indexOf("msie") != -1) && (agt.indexOf("opera") == -1));
+
+  var pluginDetected = false;
+
+
+
+  if (is_nav && !SOMAC)
+  {
+
+    for (i = 0; i < navigator.plugins.length; i++)
+    {
+      if (navigator.plugins[i].description.indexOf("Java") != -1)
+      {
+
+        pluginDetected = true;
+
+        document.writeln('<APPLET ARCHIVE="nxapplet.jar" CODE="nxapplet.class" NAME= "nxapplet" width="400" height="300">');
+        break;
+      }
+    };
+    if (pluginDetected == false)
+    {
+      document.write("<BR>You haven't a suitable Java Plugin installed.");
+      document.write("<BR>Please, download and install the jre from the Sun site:");
+      if (SOWIN) document.write('<a href="' + 'http://plugindoc.mozdev.org/windows.html#Java">Click here to download the plugin</a>');
+      if (SOLIN) document.write('<a href="' + 'http://plugindoc.mozdev.org/linux.html#Java">Click here to download the plugin</a>');
+    }
+  }
+  else if (is_ie && SOWIN)
+  {
+    document.writeln('<OBJECT classid="clsid:8AD9C840-044E-11D1-B3E9-00805F499D93" width="400" height="300" align="baseline" codebase="http://java.sun.com/products/plugin/autodl/jinstall-1_3_0_05-win.cab#Version=1,3,0,05">');
+  }
+  else if ((is_nav || is_ie) && SOMAC)
+  {
+    if(navigator.plugins)
+    {
+      navigator.plugins.refresh(false);
+    }
+    if(navigator.mimeTypes)
+    {
+      for (i=0; i < navigator.mimeTypes.length; i++)
+      {
+        if ((navigator.mimeTypes[i].type != null) &&
+           (navigator.mimeTypes[i].type.indexOf("application/x-java-applet") != -1))
+        {
+          pluginDetected = true;
+          break;
+        }
+      }
+    }
+   if (pluginDetected)
+   {
+     document.writeln('<APPLET ARCHIVE="nxapplet.jar" CODE="nxapplet.class" NAME= "nxapplet" width="400" height="300">');
+   }
+   else
+   {
+     document.write("<BR>You haven't a suitable Java Plugin installed.");
+     document.write("<BR>Please, download and install the jre from the Sun site:");
+     document.write('<a href="' + 'http://developer.apple.com/java/download/">Click here to download the plugin</a>');
+   }
+ }
+ else if(!is_nav && !is_ie)
+ {
+   document.writeln('<APPLET ARCHIVE="nxapplet.jar" CODE="nxapplet.class" NAME= "nxapplet" width="400" height="300">');
+ }
+
+
+
+// end hide JavaScript -->
+</SCRIPT>
+
+    <!--<APPLET ARCHIVE="nxapplet.jar" CODE="nxapplet.class" NAME= "nxapplet" width="400" height="300">-->
+    <PARAM NAME="boxbgcolor" VALUE="236, 235, 229">
+    <PARAM NAME="progressbar" VALUE="true">
+    <PARAM NAME="boxmessage" VALUE="Please wait while Java applet loads...">
+    <PARAM NAME="BackgroundsUrl" VALUE="http://debian.tu-bs.de/knoppix/nx/nxplugin/Java/images/backgrounds/">
+    <PARAM NAME="Background1" VALUE="background-1.gif">
+    <PARAM NAME="Background2" VALUE="background-2.gif">
+    <PARAM NAME="Background3" VALUE="background-3.gif">
+    <PARAM NAME="Background4" VALUE="background-2.gif">
+    <PARAM NAME="Background5" VALUE="background-4.gif">
+    <PARAM NAME="Background6" VALUE="background-4.gif">
+    <PARAM NAME="Background7" VALUE="background-5.gif">
+    <PARAM NAME="Background8" VALUE="background-6.gif">
+    <PARAM NAME="Background9" VALUE="background-7.gif">
+
+    <PARAM NAME="StringsUrl" VALUE="http://debian.tu-bs.de/knoppix/nx/nxplugin/Java/images/strings/">
+    <PARAM NAME="String1" VALUE="string-1.gif">
+    <PARAM NAME="String2" VALUE="string-2.gif">
+    <PARAM NAME="String3" VALUE="string-3.gif">
+    <PARAM NAME="String4" VALUE="string-4.gif">
+    <PARAM NAME="String5" VALUE="string-5.gif">
+    <PARAM NAME="String6" VALUE="string-6.gif">
+
+    <PARAM NAME="ErrorsUrl" VALUE="http://debian.tu-bs.de/knoppix/nx/nxplugin/Java/images/errors/">
+    <PARAM NAME="Error1" VALUE="error-1.gif">
+    <PARAM NAME="Error2" VALUE="error-2.gif">
+    <PARAM NAME="Error3" VALUE="error-3.gif">
+    <PARAM NAME="Error4" VALUE="error-4.gif">
+    <PARAM NAME="Error5" VALUE="error-5.gif">
+    <PARAM NAME="Error6" VALUE="error-6.gif">
+    <PARAM NAME="Error7" VALUE="error-7.gif">
+    <PARAM NAME="Error8" VALUE="error-8.gif">
+    <PARAM NAME="Error9" VALUE="error-9.gif">
+
+    <PARAM NAME="ButtonsUrl" VALUE="http://debian.tu-bs.de/knoppix/nx/nxplugin/Java/images/buttons/">
+    <PARAM NAME="Cancel" VALUE="cancel.gif">
+    <PARAM NAME="CancelOver" VALUE="cancel-over.gif">
+    <PARAM NAME="CancelActive" VALUE="cancel-active.gif">
+    <PARAM NAME="Continue" VALUE="continue.gif">
+    <PARAM NAME="ContinueOver" VALUE="continue-over.gif">
+    <PARAM NAME="ContinueActive" VALUE="continue-active.gif">
+    <PARAM NAME="Download" VALUE="download.gif">
+    <PARAM NAME="DownloadOver" VALUE="download-over.gif">
+    <PARAM NAME="DownloadActive" VALUE="download-active.gif">
+    <PARAM NAME="Run" VALUE="run.gif">
+    <PARAM NAME="RunOver" VALUE="run-over.gif">
+    <PARAM NAME="RunActive" VALUE="run-active.gif">
+    <PARAM NAME="Details" VALUE="details.gif">
+    <PARAM NAME="DetailsOver" VALUE="details-over.gif">
+    <PARAM NAME="DetailsActive" VALUE="details-active.gif">
+    <PARAM NAME="RedirectUrl" VALUE="http://freenx.berlios.de/lwe/">
+    <PARAM NAME="SessionUrl" VALUE="http://freenx.berlios.de/lwe/lwe.nxs">
+    <PARAM NAME="SessionName" VALUE="lwe.nxs">
+    <PARAM NAME="Linux" VALUE="/plugin/Linux/">
+    <PARAM NAME="DefaultPluginLinuxUrl" VALUE="http://debian.tu-bs.de/knoppix/nx/nxplugin/Linux/client-lwe.zip">
+    <PARAM NAME="DefaultPluginLinuxVersion" VALUE = "1.5.0-97">
+    <PARAM NAME="Windows" VALUE="/plugin/Windows/">
+    <PARAM NAME="DefaultPluginWindowsUrl" VALUE="http://debian.tu-bs.de/knoppix/nx/nxplugin/Windows/client.zip">
+    <PARAM NAME="DefaultPluginWindowsVersion" VALUE = "1.5.0-97">
+    <PARAM NAME="MacOS" VALUE="/plugin/MacOSX/">
+    <PARAM NAME="DefaultPluginMacOSUrl" VALUE="http://debian.tu-bs.de/knoppix/nx/nxplugin/MacOSX/client.zip">
+    <PARAM NAME="DefaultPluginMacOSVersion" VALUE = "1.5.0-97">
+    <PARAM NAME="Solaris" VALUE="/plugin/Solaris/">
+    <PARAM NAME="DefaultPluginSolarisUrl" VALUE="http://debian.tu-bs.de/knoppix/nx/nxplugin/Solaris/client.zip">
+    <PARAM NAME="DefaultPluginSolarisVersion" VALUE = "1.5.0-97">
+    <PARAM NAME="archive" VALUE="nxapplet.jar">
+    <PARAM NAME="code" VALUE="nxapplet.class">
+    <PARAM NAME="type" VALUE="application/x-java-applet;version=1.2">
+
+   </OBJECT>
+  </APPLET>
+
+  </BODY>
+</HTML>

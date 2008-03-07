@@ -1,0 +1,45 @@
+#!/bin/sh
+#
+# nxsmb: Small wrapper for the SMB backend to be able to print to CIFS or SMB ports directly.
+#
+# Copyright (c) 2008 by Fabian Franz.
+#
+#
+
+# turn on DEBUG?
+#set -x -v
+
+NXREDIR_LIBRARY="/usr/lib/libnxredir.so.0"
+COMMAND_SMB="/usr/lib/cups/backend/smb"
+
+PORT=$(echo $DEVICE_URI | cut -d/ -f3 | cut -d@ -f2 | cut -d: -f2)
+PROTOCOL=$(echo $DEVICE_URI | cut -d/ -f4)
+PRINTER=$(echo $DEVICE_URI | cut -d/ -f5)
+
+if [ -z "$PRINTER" ] # old style setup
+then
+	echo "Warning: Not using nxredir library. The DEVICE_URI is not in the right format."
+	exec "$COMMAND_SMB" "$@"
+fi
+
+if [ ! -x "$NXREDIR_LIBRARY" ]
+then
+	# repair DEVICE_URI
+	DEVICE_URI=$(echo $DEVICE_URI | sed "s|/$PROTOCOL/|/$PRINTER|g")
+	echo "Error: Not using nxredir library. $NXREDIR_LIBRARY could not be found or is not executable."
+	exec "$COMMAND_SMB" "$@"
+fi
+
+if [ "$PROTOCOL" = "cifs" -o "$PROTOCOL" = "CIFS" ]
+then
+	REAL_PORT="445"
+else
+	REAL_PORT="139"
+fi
+
+DEVICE_URI=$(echo $DEVICE_URI | sed "s|:$PORT/$PROTOCOL/|:$REAL_PORT/|g")
+
+export NXSAMBA_PORT="$PORT"
+export LD_PRELOAD="$NXREDIR_LIBRARY${LD_PRELOAD:+:$LD_PRELOAD}"
+
+exec "$COMMAND_SMB" "$@"

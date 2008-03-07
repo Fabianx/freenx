@@ -1,0 +1,50 @@
+nxspeex - A simple nx esd proxy for low bandwidth speex encoded transmission of data.
+=====================================================================================
+
+Ok here is how to use it:
+
+Building
+--------
+
+- Install libspeex development headers and libspeex library.
+- Install libesd development headers and libesd library.
+- Build nxspeex for client and server:
+	gcc -Wall -o nxspeex nxspeex.c -lesd -lspeex
+
+Using
+-----
+
+- Install netpipes on server and client
+- Start a nxsession with normal ESD support
+
+On server:
+	faucet <someport> --fd 6 hose localhost <$DISPLAY+7000> --fd 7 nxspeex encode &
+
+	Start application:
+	
+	ESPEAKER=127.0.0.1:<someport> mpg123 -o esd somefile.mp3
+	ESPEAKER=127.0.0.1:<someport> esddsp <someossapp>
+
+On client:
+
+	ps aux | grep nxesd
+	# write down port and start nxesd on another port
+	killall nxesd
+	/usr/NX/bin/nxesd -public -tcp -nobeeps -port <noted port+1>
+	faucet <noted port> --fd 6 hose localhost <noted port + 1> --fd 7 nxspeex
+
+Thats it!
+
+Of course this might be easily and transparently incorporated into nxcomp/Loop.cpp in the future.
+
+Note:
+
+- No 8 bit files are supported until now.
+
+- ESD_MIXER and other ESD commands are just discarded.
+
+- Latency issues:
+
+Its not yet perfect, as it depends on latency being quite low at the moment.
+
+To remove this limitation, nxspeex should check via select if there is a heartbeat and just if it can't find one in a certain latency limit, do the real read and resync.

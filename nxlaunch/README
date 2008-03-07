@@ -1,0 +1,27 @@
+
+  nxlaunch: A GTK+ NX client.
+
+  Seb James. September 2007. seb@esfnet.co.uk
+
+Nxlaunch uses a program called nxcl (distributed separately) to
+negotiate the NX connection. Nxlaunch sends settings via dbus to
+nxcl so that it can then negotiate the correct sort of NX session
+for you. 
+
+nxcl is distributed separately with the nxcl library.
+
+It would be quite possible to write a GTK client which links directly
+to the nxcl library, but that is left as a further exercise for
+someone.
+
+Building:
+
+If you checked out the svn code, you need to do:
+
+autoreconf -is
+
+then:
+
+./configure [--enable-debug-output]
+make
+make install

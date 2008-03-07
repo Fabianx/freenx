@@ -1,0 +1,257 @@
+This annoucement is inspired by the "Marketing for Geeks" guide, which 
+was recently showcasted by Aaron and Waldo at akademy 2005, the KDE 
+contributor conference in Malaga/Spain. 
+
+
+Malaga, 30th August, aKademy 2005 conference.
+
+The FreeNX Developer Team is proud to release a new version of FreeNX,
+the remote desktop access software. 
+
+* FreeNX is known to work on Linux, FreeBSD and Solaris. 
+* FreeNX provides efficient access to remote applications with a 
+  graphical user interface (GUI). 
+* FreeNX works well even over dialup modem links. 
+* FreeNX connects client computers to Linux or Unix GUI applications
+  as well as to MS Windows. 
+* FreeNX works very well with the NoMachine NX Client (available for 
+  Linux, Windows and Solaris). 
+  
+
+
+What FreeNX can do for different users -- some real world use cases:
+====================================================================
+
+* a travelling salesman can access his own desktop (at home or at his
+  office) from the hotel room, using a modem (or better) connection.
+
+* a helpdesk technician can display any GUI application of a LAN user
+  to his own screen and help to properly set up its configuration or
+  troubleshoot it.
+
+* a university system administrator can set up a cost efficient
+  Linux Desktop Application Server for students to connect to from
+  classes or from home.
+
+* a KDE developer can showcase his latest code to co-maintainers and
+  usability experts in action without them needing to compile it by
+  themselves.
+
+* an IT consultancy company can offer its customers more flexible
+  scenarios when planning and implementing migrations from MS Windows
+  to Linux. 
+
+
+What parts FreeNX is composed of:
+=================================
+
+The FreeNX remote desktop server software *requires* the NX Core 
+components developed by NoMachine.com who have released that source
+code under the GPL license.
+
+The NoMachine source code needs to be compiled for your platform by 
+yourself or by your Linux distribution so that FreeNX can work. 
+NoMachine Core NX components are available in version 1.4.0 or 1.5.0. 
+We recommend to use 1.5.0 for better performance and more features. 
+
+NoMachine also offer a commercial package of ready-made NX server 
+software for several OS platforms, including support and several 
+add-ons useful for enterprise level installations.
+
+
+What improvements this release brings to current FreeNX users:
+==============================================================
+
+* it now sports the most easy installation we ever had
+* it now works better and faster than ever, and is more colorful
+* it now has a resizable remote desktop
+* it now has a fast single application mode
+* it now supports truecolor remote MS Windows sessions
+* it now can be installed without having root privileges
+* it is now easier to troubleshoot in case of problems
+* it now better supports big corporate environments
+* it contains many fixes for known bugs
+* it is more stable than previous releases
+* it has been improved on security
+
+
+And last but not least:
+
+* FreeNX 0.4.5 ships with the first official FreeNX background picture
+  (useful as a wallpaper)
+
+
+What FreeNX users at "aKademy" had to say this about the release:
+=================================================================
+
+KDE/Konqueror developer Daniel Teske says: "It was easy to install, 
+easy to use and it is blazingly fast. I was working here from Spain 
+on my home machine in Germany without any problems."
+
+Martin Konold (architect of the Kolab groupware server which already 
+successfully replaced several MS Exchange installations) told us this,
+after having seen a preview of NX4MyHome: "I am deeply impressed by 
+the ease of use and the performance of NX4Myhome. FreeNX manages to 
+do the impossible: it even speeds up command line operations by a 
+factor of three or more while offering the same security as ssh with 
+full suspend and resume functionality."
+
+
+Now let us give you some details about the new release:
+
+
+Easiest installation ever
+-------------------------
+
+The "nxsetup" program of FreeNX 0.4.5 now...
+  ...works by default in an interactive way
+  ...checks for a correct configuration 
+  ...conducts automatic self-tests 
+  ...offers a help system.
+
+Important changes compared to previous releases:
+
+* since "nxsetup" is now interactive, we added an "--auto" commandline 
+  parameter to support the old behaviour you may be accustomed to;
+* since "nxsetup" now uses the NoMachine key by default, the user 
+  installing FreeNX has to confirm its use;
+* since "nxsetup" now checks for a correct configuration file, there is 
+  a "--ignore-errors" commandline parameter to continue nxsetup even 
+  if the check fails;
+* since "nxsetup" now runs an automatic self-test, it also reminds the 
+  user of some common pitfalls.
+
+
+Better, faster, and more colorful (NX 1.5.0)
+--------------------------------------------
+
+FreeNX 0.4.5 has full support for the most important features 
+introduced into the 1.5.0 NoMachine Core NX components (not working
+with the 1.4.0 version):
+
+* your full remote desktop is now resizable if displayed in windowed 
+  mode.  Just drag the borders with the mouse to change its size.
+* your full remote desktop can now easily toggled between windowed and
+  fullscreen  mode. Just press the key combination [Ctrl]+[Alt]+[f].
+* your remote single application windows now supports the same fast
+  speed that the full remote desktop always had. To use this feature...
+    ...on the FreeNX-0.4.5 server set ENABLE_ROOTLESS_MODE="1" in the 
+       "node.conf" configuration file, and
+    ...in the NoMachine NX Client follow these steps:
+       --> click "Configure..."
+       --> select the "General" tab
+       --> locate and go to the "Desktop" box (middle box)
+       --> select "Unix" and "Custom" session type
+       --> click "Settings..."
+       --> enable "Run the following command" radio button
+       --> type in the application's startup command, click "OK" twice
+           and login. 
+* your remote access to Windows Terminal Server sessions can now be run
+  in "Truecolor" mode. Just use the 1.5.0 version of the NoMachine NX 
+  Client and follow these steps to set it up:
+       --> click "Configure..."
+       --> select the "General" tab
+       --> locate and go to the "Desktop" box (middle box)
+       --> select the "Windows" session type 
+       --> locate and go to the "Display" box (bottom box)
+       --> select "Use custom settings"
+       --> click "Modify..."
+       --> locate and go to the "Allowed colors" box (top box)
+       --> move the slider to the "16M" position
+
+
+Install FreeNX without root privileges (usermode installation)
+--------------------------------------------------------------
+
+Imagine the following scenario:
+
+* you have a user account on a Linux machine where you can run a KDE
+  desktop if you sit in front of it
+* you can remotely access the machine via an SSH login in shell-only
+  mode
+* you do not possess root privileges on the machine, and therefor you
+  cannot install the standard FreeNX server.
+
+FreeNX-0.4.5 now supports a "usermode" installation via remote SSH 
+access into your home directory. 
+
+FreeNX Development Team member Thorsten Sandfuchs has explained the
+steps to follow in detail in a separate HOWTO. It is available from:
+
+   http://openfacts.berlios.de/index-en.phtml?title=FreeNX_Howto
+
+The FreeNX Development Team plans to ship ready-made binary packages
+of this option (probably named "NX4MyHome") which support a more easy
+mode of installation as soon as all tests are finished. For now you 
+have to follow the instructions supplied by the link above.
+
+
+Easier troubleshooting in case of problems
+------------------------------------------
+
+In the past FreeNX users experienced several problem scenarios that 
+came up over and over again. There are many different distributions
+shipping FreeNX packaged by them, each doing things a bit different. 
+But we can't give detailed "test this" and "do that" instructions 
+without knowing a lot about the environment of a user experiencing
+problems with the FreeNX package provided by his distro.
+
+For example starting up nxagent over a ssh -X connection to test if 
+the basic functionality works can now be done with this simple command:
+
+   nxserver --agent :1000
+
+instead of formerly:
+
+   LD_LIBRARY_PATH=/path/to/nxlibs/dir /path/to/nxagent :1000
+
+It should now be a lot easier to give advice in case of problems.
+
+
+Better support for big corporate environments
+---------------------------------------------
+
+Thanks to help and patches of Google and Cisco employees, FreeNX now 
+does work also in environments where there are 1000 users or more.
+
+The previous authentications code suffered from the flaw that it did
+retrieve the whole passwd database and grep through it to find a user. 
+Now it directly queries for the information needed using getent.
+
+
+Lots of bugfixes, more stability and improved security
+------------------------------------------------------
+
+This release contains several bugfixes:
+
+* Fixed support for CUPS forwarding
+* Fixed resume with the 1.5.0 NoMachine NX Client
+
+Stability has been increased in the following fields:
+
+* Reconnection support (Yes, again)
+
+Security issues / concerns have been fixed regarding the following topics:
+
+* Certain passwords for VNC and RDP type session under certain 
+  conditions were visible via `ps aux`. All known cases are fixed.
+* Passwords are no longer shown in log files or re-transmitted to the 
+  client.
+* ${USER_FAKE_HOME}/.nx is now protected against access by other users.
+* The NX client is no longer able to overwrite parameters set by the 
+  NX server.
+ 
+
+First official FreeNX background picture
+----------------------------------------
+
+This release for the first time ships a PNG graphic file, meant to be 
+used as a desktop wallpaper. You can now show your appreciation for 
+FreeNX by using it for at least one of your desktops as a background. 
+Whenever you show off FreeNX, be sure to use it and spread the word!
+
+
+For the FreeNX Development Team,
+
+Fabian Franz
+Kurt Pfeifle

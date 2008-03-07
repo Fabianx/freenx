@@ -1,0 +1,71 @@
+
+  qtnx: A Qt-based NX client linking to nxcl
+
+  George Wright. January 2008. gwright@kde.org
+
+This is an update of the experimental QtNX client which was based on the
+now deprecated NXClientLib backend library. This is an experimental port
+to Seb James' nxcl library.
+
+Building qtnx
+-------------
+
+Prerequisites are:
+
+* libXcomp from NoMachine, provided by the nxcomp package.
+* nxssh from NoMachine
+* nxproxy from NoMachine
+* nxcl from the FreeNX subversion repository
+
+(These three NX components all should be from the 3.x.x series. You can
+obtain them from NoMachine's servers at http://www.nomachine.com/sources.php)
+
+Read the nxcl README for details of the first three packages. You will not need
+to build the nxcmd daemon nor the doxygen API documentation.
+
+To build QtNX you will need Qt 4.x. You need to run the following commands:
+
+$ qmake
+$ make
+
+This will generate a qtnx binary in that directory; install it to /usr/bin
+or anywhere you want.
+
+Win32 Builds
+------------
+
+In order to build on Win32, you will need a full Cygwin setup. Ensure you have
+pkg-config installed in cygwin.
+
+Build Qt 4.3.3 as per the instructions on http://wiki.lyx.org/LyX/LyXOnCygwin;
+you will, however, need to patch Qt. Line 528 in src/corelib/codecs/qtextcodec.cpp
+should also contain an extra conditional:
+
+&& !defined(Q_CYGWIN_WIN)
+
+You can then build Qt without any trouble by following those instructions. Ensure
+you also build the XML module and install qmake and mkspecs.
+
+Afterwards, set QTDIR to point to wherever you installed Qt to, and set the
+PATH to point to QTDIR/bin as well:
+
+$ export QTDIR=/usr/local/src/qtwin-4.3.3
+$ export PATH=$QTDIR/bin:$PATH
+
+You can then build qtnx normally with the standard steps:
+
+$ qmake
+$ make
+
+Mac OS X Builds
+---------------
+
+Ensure that you have a build of Qt 4 on OS X, then run qmake from $QTDIR/bin.
+
+Standard procedure then follows:
+
+$ qmake
+$ make
+
+You can then put statically linked versions of nxssh and nxproxy and id.key in
+qtnx.app/Contents/MacOS - it should then all just work.

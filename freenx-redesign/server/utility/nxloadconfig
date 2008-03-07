@@ -1,0 +1,198 @@
+#!/bin/bash
+
+# nxloadconfig - Read configuration files, setup logging
+#
+# Copyright 2007 Google Inc.
+# All Rights Reserved.
+# Author: diamond@google.com (Stephen Shirley)
+#
+# License: GNU GPL, version 2
+#
+# Used configuration keys:
+#
+# Used internal subfunctions:
+#
+# @sub "log n" log to (sys)log with loglevel n
+#
+# Used internal variables:
+#
+# Used internal components:
+#
+# @comp nxlog
+#
+# Used external programs:
+#
+# @ext getopt - parse command options (enhanced)
+#
+# Accepted protocol requests from client:
+#
+# Used protocol responses to client:
+#
+# FAQ-Questions:
+#
+# SVN: $Id$
+#
+
+# Store these for use later
+ORIG_ARGS=($@)
+SCRIPT_NAME=$(basename $0)
+SCRIPT_DIR=$(dirname $0)
+
+
+parse_args() {
+	ARGS=$(/usr/bin/getopt -n "$SCRIPT_NAME" -o "h" -l "config:,help" -- \
+	"${ORIG_ARGS[@]}" 2>/dev/null)
+
+	if [ $? != 0 ]
+	then
+		# Can't grab only the error message if there's an issue, so just run it
+		# again to output the error directly.
+		/usr/bin/getopt -n "$SCRIPT_NAME" -o "h" -l "config:,help" -- \
+		"${ORIG_ARGS[@]}" > /dev/null
+		exit 1
+	fi
+}
+
+
+process_args() {
+	HELP="no"
+
+	while true; do
+		case "$1" in
+			--config) CONF_NAME="$2"; shift 2 ;;
+			-h|--help) HELP="yes"; shift ;;
+			--) shift; break ;;
+			*) echo "$SCRIPT_NAME: error parsing cmdline" >&2; exit 1 ;;
+		esac
+	done
+
+	[ "$HELP" = "yes" ] && usage
+}
+
+
+usage() {
+	echo "$SCRIPT_NAME - Load the FreeNX configuration variables into the environment."
+	echo "Syntax: nxloadconfig -h|--help"
+	echo "        nxloadconfig [--config=name]"
+	echo
+	echo "  --config=name            Load $PATH_ETC/name.conf config file."
+	echo "  -h,--help                Display this message."
+	exit 0
+}
+
+
+default_if_not_set() {
+	var="$1"
+	default="$2"
+
+	# Is the var set?
+	if ! declare -p "$var" &> /dev/null
+	then
+		# Var is not set, set it to the default now and return
+		declare "$var" "$default"
+		return 0
+	else
+		return 1
+	fi
+}
+
+
+check_dir_vars() {
+	check_dir_var PATH_BASE "/usr/NX"
+	check_dir_var PATH_BIN "$PATH_BASE/bin"
+	check_dir_var PATH_ETC "$PATH_BASE/etc"
+	check_dir_var PATH_LIB "$PATH_BASE/lib"
+}
+
+
+check_dir_var() {
+	var="$1"
+	defdir="$2"
+	# Gets the value of the variable named by $var
+	varval=$(eval echo \$"$foo")
+
+	default_if_not_set "$var" "$defdir" && return
+
+	if [ ! -d "$varval" ]
+	then
+		log $LOG_WARNING "Invalid directory variable $var: $varval"
+		declare "$var" "$defdir"
+	fi
+
+	if [ ! -d "$defdir" ]
+	then
+		log $LOG_ERR "Invalid default directory variable $var: $defdir"
+		exit 1
+	fi
+}
+
+
+check_command_vars() {
+	check_command_var COMMAND_START_KDE "startkde"
+	check_command_var COMMAND_START_GNOME "gnome-session"
+	check_command_var COMMAND_START_CDE "cdwm"
+	check_command_var COMMAND_XTERM "xterm"
+	check_command_var COMMAND_XAUTH "/usr/X11R6/bin/xauth"
+	check_command_var COMMAND_SMBMOUNT "smbmount"
+	check_command_var COMMAND_SMBUMOUNT "smbumount"
+	check_command_var COMMAND_NETCAT "netcat"
+	check_command_var COMMAND_SSH "ssh"
+	check_command_var COMMAND_SSH_KEYGEN "ssh-keygen"
+	check_command_var COMMAND_CUPSD "/usr/sbin/cupsd"
+	check_command_var COMMAND_MD5SUM "md5sum"
+}
+
+
+check_command_var() {
+	var="$1"
+	defcmd="$2"
+	# Gets the value of the variable named by $var
+	varval=$(eval echo \$"$foo")
+
+	default_if_not_set "$var" "$defcmd" && return
+
+	if [ ! -d "$varval" ]
+	then
+		log $LOG_WARNING "Invalid directory variable $var: $varval"
+		declare "$var" "$defdir"
+	fi
+
+	if [ ! -d "$defdir" ]
+	then
+		log $LOG_ERR "Invalid default directory variable $var: $defdir"
+		exit 1
+	fi
+}
+
+
+load_file() {
+	file="$1"
+
+	if [ -f "$file" ]
+	then
+		. "$file"
+	else
+		echo "$SCRIPT_NAME: no such file or directory: \"$file\"" >&2; exit 1;
+	fi
+}
+
+parse_args
+eval set -- "$ARGS"
+process_args "$@"
+
+# Load logging fuctionality
+LOG_LEVEL=$LOG_WARNING
+load_file "$SCRIPT_DIR/nxlog"
+
+# Load general configuration
+load_file "$PATH_ETC/general.conf"
+# Load function-specific configuration
+[ -n "$CONF_NAME" ] && load_file "$PATH_ETC/$CONF_NAME.conf"
+
+check_dir_vars
+check_command_vars
+
+log $LOG_DEBUG "called with cmdline: ${ORIG_ARGS[@]}"
+
+
+# vim: ts=8 noexpandtab sw=8 softtabstop=0

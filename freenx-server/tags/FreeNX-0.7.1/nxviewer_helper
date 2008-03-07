@@ -1,0 +1,39 @@
+#!/bin/sh
+#
+# nxviewer_helper - Small helper for external vncviewer program as needed by NX 3.0.0 backend.
+#
+# Copyright (c) 2007 by Fabian Franz <freenx@fabian-franz.de>
+#
+# License: GPL, v2
+#
+# SVN: $Id $
+#
+
+[ -z "$COMMAND_VNCVIEWER" ] && COMMAND_VNCVIEWER="vncviewer"
+[ -z "$COMMAND_VNCPASSWD" ] && COMMAND_VNCPASSWD="$PATH_BIN/nxpasswd"
+[ -z "$COMMAND_X11VNC" ] && COMMAND_X11VNC="x11vnc"
+
+mkdir -p "$NXSESSION_DIRECTORY/scripts/"
+echo "$agent_password" | $COMMAND_VNCPASSWD "$NXSESSION_DIRECTORY/scripts/.passwd" doit
+
+# Start x11vnc
+if [ -n "$mirrordisplay" ]
+then
+	(
+		unset XAUTHORITY
+		# Note: No "-accept popup" as its the same user and with that password
+		#       he could do already more than -accept popup would allow.
+		DISPLAY="$mirrorhost:$mirrordisplay.0" $COMMAND_X11VNC -timeout 120 -once -rfbauth "$NXSESSION_DIRECTORY/scripts/.passwd" >"$NXSESSION_DIRECTORY/scripts/.vnc_port" &
+	)
+	sleep 1
+	agent_port=$(cat "$NXSESSION_DIRECTORY/scripts/.vnc_port" | egrep "^PORT=" | cut -d'=' -f 2)
+	[ -z "agent_port" ] && agent_port="0"
+	# note the :: is not a mistake, but rather a hint for nxviewer to use this as a port and not
+	# interpret it as a display.
+	agent_server="127.0.0.1::$agent_port"
+	rm -f "$NXSESSION_DIRECTORY/scripts/.vnc_port"
+fi
+
+# Start the vncviewer
+
+exec $COMMAND_VNCVIEWER -passwd "$NXSESSION_DIRECTORY/scripts/.passwd" -fullscreen "$agent_server" $AGENT_EXTRA_OPTIONS_RFB

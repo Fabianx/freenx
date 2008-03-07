@@ -1,0 +1,28 @@
+#!/bin/bash
+#
+# Sample startup script for FreeNX server
+#
+# Coypright (c) 2007 by Fabian Franz <freenx@fabian-franz.de>.
+#
+# License: GNU GPL, version 2
+#
+# SVN: $Id$
+#
+
+# Read the config file
+. $(PATH=$(cd $(dirname $0) && pwd):$PATH which nxloadconfig) --
+
+case "$1" in
+	start)
+		[ ! -d "/tmp/.X11-unix" ] && mkdir -m1755 /tmp/.X11-unix/
+		$PATH_BIN/nxserver --cleanup
+		$PATH_BIN/nxserver --start
+	;;
+	stop)
+		$PATH_BIN/nxserver --stop
+		$PATH_BIN/nxserver --cleanup
+	;;	
+	*)
+		echo "Usage: $0 <start|stop>"
+	;;
+esac

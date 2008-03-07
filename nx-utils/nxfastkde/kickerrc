@@ -1,0 +1,7 @@
+[General]
+UseBackgroundTheme[$i]=false
+FadeOutAppletHandles[$i]=false
+HideAnimation[$i]=false
+
+[buttons]
+EnableIconZoom[$i]=false

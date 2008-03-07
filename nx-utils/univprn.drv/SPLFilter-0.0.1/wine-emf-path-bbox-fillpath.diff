@@ -1,0 +1,119 @@
+diff -ur ../gdi32.old/enhmfdrv/dc.c ./enhmfdrv/dc.c
+--- ../gdi32.old/enhmfdrv/dc.c	2007-01-09 16:42:47.000000000 +0100
++++ ./enhmfdrv/dc.c	2007-01-28 11:40:27.000000000 +0100
+@@ -188,11 +188,16 @@
+ 
+ BOOL EMFDRV_BeginPath( PHYSDEV dev )
+ {
++    EMFDRV_PDEVICE *physDev = (EMFDRV_PDEVICE *)dev;
+     EMRBEGINPATH emr;
+ 
+     emr.emr.iType = EMR_BEGINPATH;
+     emr.emr.nSize = sizeof(emr);
+ 
++    /* Re-initialise the bounding box */
++    physDev->Path_rclBounds.left = 1;
++    physDev->Path_rclBounds.right = 0;
++
+     return EMFDRV_WriteRecord( dev, &emr.emr );
+ }
+ 
+@@ -218,15 +223,12 @@
+ 
+ BOOL EMFDRV_FillPath( PHYSDEV dev )
+ {
++    EMFDRV_PDEVICE *physDev = (EMFDRV_PDEVICE *)dev;
+     EMRFILLPATH emr;
+ 
+     emr.emr.iType = EMR_FILLPATH;
+     emr.emr.nSize = sizeof(emr);
+-    FIXME("Bounds\n");
+-    emr.rclBounds.left = 0;
+-    emr.rclBounds.top = 0;
+-    emr.rclBounds.right = 0;
+-    emr.rclBounds.bottom = 0;
++    emr.rclBounds = physDev->Path_rclBounds;
+     return EMFDRV_WriteRecord( dev, &emr.emr );
+ }
+ 
+@@ -253,29 +255,23 @@
+ 
+ BOOL EMFDRV_StrokeAndFillPath( PHYSDEV dev )
+ {
++    EMFDRV_PDEVICE *physDev = (EMFDRV_PDEVICE *)dev;
+     EMRSTROKEANDFILLPATH emr;
+ 
+     emr.emr.iType = EMR_STROKEANDFILLPATH;
+     emr.emr.nSize = sizeof(emr);
+-    FIXME("Bounds\n");
+-    emr.rclBounds.left = 0;
+-    emr.rclBounds.top = 0;
+-    emr.rclBounds.right = 0;
+-    emr.rclBounds.bottom = 0;
++    emr.rclBounds = physDev->Path_rclBounds;
+     return EMFDRV_WriteRecord( dev, &emr.emr );
+ }
+ 
+ BOOL EMFDRV_StrokePath( PHYSDEV dev )
+ {
++    EMFDRV_PDEVICE *physDev = (EMFDRV_PDEVICE *)dev;
+     EMRSTROKEPATH emr;
+ 
+     emr.emr.iType = EMR_STROKEPATH;
+     emr.emr.nSize = sizeof(emr);
+-    FIXME("Bounds\n");
+-    emr.rclBounds.left = 0;
+-    emr.rclBounds.top = 0;
+-    emr.rclBounds.right = 0;
+-    emr.rclBounds.bottom = 0;
++    emr.rclBounds = physDev->Path_rclBounds;
+     return EMFDRV_WriteRecord( dev, &emr.emr );
+ }
+ 
+diff -ur ../gdi32.old/enhmfdrv/enhmetafiledrv.h ./enhmfdrv/enhmetafiledrv.h
+--- ../gdi32.old/enhmfdrv/enhmetafiledrv.h	2007-01-09 16:42:47.000000000 +0100
++++ ./enhmfdrv/enhmetafiledrv.h	2007-01-28 11:33:21.000000000 +0100
+@@ -38,6 +38,7 @@
+     UINT       handles_size, cur_handles;
+     HGDIOBJ   *handles;
+     HANDLE     hFile;              /* Handle for disk based MetaFile */
++    RECTL      Path_rclBounds;
+     INT        horzres, vertres;
+     INT        horzsize, vertsize;
+     INT        logpixelsx, logpixelsy;
+diff -ur ../gdi32.old/enhmfdrv/init.c ./enhmfdrv/init.c
+--- ../gdi32.old/enhmfdrv/init.c	2007-01-09 16:42:47.000000000 +0100
++++ ./enhmfdrv/init.c	2007-01-28 11:34:23.000000000 +0100
+@@ -224,6 +224,9 @@
+     RECTL *bounds = &physDev->emh->rclBounds;
+     RECTL vportRect = *rect;
+ 
++    /* We need to run the code twice ... */
++    INT runLoop=2;
++
+     LPtoDP(physDev->hdc, (LPPOINT)&vportRect, 2);
+     
+     /* The coordinate systems may be mirrored
+@@ -241,6 +244,9 @@
+         vportRect.top = temp;
+     }
+ 
++    do
++    {
++
+     if (bounds->left > bounds->right)
+     {
+         /* first bounding rectangle */
+@@ -253,6 +259,12 @@
+         bounds->right  = max(bounds->right,  vportRect.right);
+         bounds->bottom = max(bounds->bottom, vportRect.bottom);
+     }
++
++    runLoop--;
++    bounds=&physDev->Path_rclBounds;
++
++    }
++    while (runLoop > 0);
+ }
+ 
+ /**********************************************************************

@@ -1,0 +1,92 @@
+#  nxsocksd - user specific SOCKS5 daemon    Prototype for the -*- Makefile -*-
+#
+#  Copyright 1997 Olaf Titz <olaf@bigred.inka.de>
+#
+#  This program is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU General Public License
+#  as published by the Free Software Foundation; either version
+#  2 of the License, or (at your option) any later version.
+
+# $Id: Makefile.in,v 1.5 1999/05/13 16:02:07 olaf Exp $
+
+SHELL=/bin/sh
+.SUFFIXES:
+.SUFFIXES: .c .o
+
+CC      = @CC@
+CFLAGS	= @CFLAGS@
+CPPFLAGS= @CPPFLAGS@
+DEFS	= @DEFS@
+LDFLAGS	= @LDFLAGS@
+LIBS	= @LIBS@
+INSTALL	= @INSTALL@
+
+prefix	= @prefix@
+exec_prefix= @exec_prefix@
+bindir	= @bindir@
+mandir	= @mandir@
+
+PROGS	= nxsocksd
+MANS	= nxsocksd.1
+OBJS	= main.o socks.o udp.o resolv.o thread.o lib.o
+
+SRCS	= README nxsocksd.1.in Makefile.in configure configure.in config.h.in \
+		socks.h udp.h thread.h lib.h resolv.h log.h stats.h \
+		socks.c udp.c thread.c lib.c resolv.c main.c aquery.c \
+		install-sh COPYING
+SRCSC	= $(SRCS) Checksums
+
+all: $(PROGS)
+
+nxsocksd: $(OBJS)
+	$(CC) $(LDFLAGS) -o nxsocksd $(OBJS) $(LIBS)
+
+aquery: aquery.o resolv.o thread.o lib.o
+	$(CC) $(LDFLAGS) -o aquery aquery.o resolv.o thread.o lib.o $(LIBS)
+
+install: all
+	$(INSTALL) -d -m 0755 $(bindir) $(mandir)/man1
+	$(INSTALL) -m 0755 $(PROGS) $(bindir)
+	-$(INSTALL) -m 0644 $(MANS) $(mandir)/man1
+
+.c.o:
+	$(CC) $(CPPFLAGS) $(DEFS) $(CFLAGS) -c $<
+
+clean:
+	rm -f $(PROGS) aquery core a.out *.o *.s *.a *.tmp
+
+distclean: clean
+	rm -f config.cache config.h config.log config.status \
+		Makefile nxsocksd.1 TAGS
+
+Checksums: $(SRCS)
+	makechecksums $(SRCS) > Checksums
+
+shar: $(SRCSC)
+	cd .. && shar $(SRCSC:%=nxsocksd/%) > nxsocksd.shar
+
+tgz: $(SRCSC)
+	cd .. && ln -sf nxsocksd nxsocksd-@VERSION@ && \
+	  tar czf nxsocksd-@VERSION@.tar.gz $(SRCSC:%=nxsocksd-@VERSION@/%)
+
+configure: configure.in
+	autoconf
+
+tags:
+	etags --regex='/[ \t]*\#undef[ \t]+\([^ \t]+\)/' \
+		*.c *.h *.h.in
+
+depend: clean
+	sed -e '/^\#\#\# Dependencies/q' Makefile > Make.tmp
+	gcc -E -MM $(CPPFLAGS) *.c >> Make.tmp
+	mv -f Makefile Makefile~~
+	mv -f Make.tmp Makefile
+
+### Dependencies
+aquery.o: aquery.c config.h thread.h resolv.h log.h
+lib.o: lib.c config.h lib.h
+main.o: main.c config.h thread.h socks.h log.h lib.h stats.h resolv.h
+resolv.o: resolv.c config.h thread.h resolv.h log.h lib.h
+socks.o: socks.c config.h thread.h socks.h log.h lib.h stats.h udp.h resolv.h
+thread.o: thread.c config.h thread.h log.h
+udp.o: udp.c config.h thread.h log.h udp.h lib.h socks.h resolv.h

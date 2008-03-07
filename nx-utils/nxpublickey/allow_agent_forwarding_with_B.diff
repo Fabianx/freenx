@@ -1,0 +1,13 @@
+--- channels.c.old	2005-07-05 02:22:18.000000000 +0200
++++ channels.c	2005-07-05 02:14:06.000000000 +0200
+@@ -3098,6 +3098,10 @@
+ 
+ int nx_check_channel_input(Channel *channel, char *data, int *length, int limit)
+ {
++	if (strcmp(channel->ctype,"authentication agent connection")==0)
++		return 0;
++		
++	
+         debug("NX> 285 Going to check input for descriptor: %d", channel->rfd);
+ 
+         /*

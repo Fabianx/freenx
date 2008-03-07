@@ -1,0 +1,69 @@
+#!/bin/bash
+#
+# /usr/NX/bin/nxkeygen
+#		Create a new client/server key pair
+#
+#		Originally written for Gentoo Linux
+#
+# Author	Stuart Herbert
+#		(stuart@gentoo.org)
+#
+# Copyright	(c) 2004 Gentoo Foundation
+#		Released under v2 of the GNU GPL
+#
+# CVS: $Id: nxkeygen,v 1.12 2005/05/05 08:04:24 jonno Exp $
+#
+# ========================================================================
+
+# Read the config file
+. $(PATH=$(cd $(dirname $0) && pwd):$PATH which nxloadconfig) --
+
+NX_KEY_DIR="$NX_HOME_DIR/.ssh"
+DATE="`date '+%Y%m%d-%H%M%S'`"
+NX_CLIENT_KEY="${NX_KEY_DIR}/client.id_dsa.key"
+NX_SERVER_KEY="${NX_KEY_DIR}/server.id_dsa.pub.key"
+
+main ()
+{
+	# create a new key
+	umask 177
+	$COMMAND_SSH_KEYGEN -q -t dsa -N '' -f ${NX_KEY_DIR}/local.id_dsa
+
+	# backup the existing keys
+	
+	if [ -f "${NX_SERVER_KEY}" ]; then
+		echo "Backing up existing server key to ${NX_SERVER_KEY}.${DATE}"
+		mv -f "${NX_SERVER_KEY}" "${NX_SERVER_KEY}.${DATE}"
+	fi
+
+	if [ -f "${NX_CLIENT_KEY}" ]; then
+		echo "Backing up existing client key to ${NX_CLIENT_KEY}.${DATE}"
+		mv -f "${NX_CLIENT_KEY}" "${NX_CLIENT_KEY}.${DATE}"
+	fi
+
+	# put the new keys in place
+
+	mv -f "${NX_KEY_DIR}/local.id_dsa" "${NX_CLIENT_KEY}"
+	mv -f "${NX_KEY_DIR}/local.id_dsa.pub" "${NX_SERVER_KEY}"
+
+	for x in ${NX_CLIENT_KEY} ${NX_SERVER_KEY} ; do
+		chmod 600 $x
+		chown nx:root $x
+	done
+	
+	# copy the key to the authorized_keys2 file
+	rm -f $NX_KEY_DIR/$SSH_AUTHORIZED_KEYS
+	echo -n "no-port-forwarding,no-X11-forwarding,no-agent-forwarding,command=\"$PATH_BIN/nxserver\" " >$NX_KEY_DIR/$SSH_AUTHORIZED_KEYS
+	cat ${NX_SERVER_KEY} >> $NX_KEY_DIR/$SSH_AUTHORIZED_KEYS
+
+	# now tell the user what to do
+
+	echo "Unique key generated; your users must install"
+	echo
+	echo "    ${NX_CLIENT_KEY}"
+	echo
+	echo "on their computers."
+}
+
+main "$@"
+

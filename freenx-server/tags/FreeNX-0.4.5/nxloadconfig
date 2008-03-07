@@ -1,0 +1,537 @@
+#!/bin/bash
+#
+# Copyright (c) 2005 by Fabian Franz <freenx@fabian-franz.de>
+#           (c) 2005 by Jon Severinsson <jonno@users.berlios.de>
+#
+# License: GPL, version 2
+#
+# CVS: $Id: nxloadconfig,v 1.43 2005/08/02 15:39:32 fabianx Exp $
+#
+# ========================================================================
+
+#########################################################################
+# Commandline support for --help, --check and --userconf
+#########################################################################
+
+HELP="no"
+CHECK="no"
+USERCONF="no"
+NXLCFG_IGNORE_ERRORS="no"
+
+while [ "$1" ]
+do
+	case "$1" in
+		--help) HELP="yes"; shift ;;
+		--check) CHECK="yes"; shift ;;
+		--ignore-errors) NXLCFG_IGNORE_ERRORS="yes"; shift;;
+		--userconf) USERCONF="yes" ; 
+					case "$2" in
+						"" | --*) shift ;;
+						*) USER=$2 ; shift 2 ;;
+					esac ;;
+		--) shift ; break ;;
+		*) echo "Invalid flag $1" ; HELP="yes"; shift ; break ;;
+	esac
+done
+
+if [ "$HELP" = "yes" ]
+then
+	echo "nxloadconfig - Load the FreeNX configuration variables into the environment."
+	echo "Syntax: nxloadconfig --help"
+	echo "        nxloadconfig [--check] [--userconf [<username>]]"
+	echo
+	echo "  --check                  Write errors to standard output."
+	echo "	--ignore-errors		 just warn, and don't exit with a error, if errors occure"
+	echo "  --userconf [<username>]  Parse <username>.node.conf as well as node.conf."
+	echo "                           Assume current user if no username is specified."
+	exit 0
+fi
+
+#########################################################################
+# INTERNAL STUFF
+# DO NOT TOUCH unless you REALLY know what you are doing
+#########################################################################
+
+NX_VERSION=1.4.0-45-SVN
+NX_LICENSE="OS (GPL)"
+
+# Where can different nx components be found
+NX_DIR=/usr
+PATH_BIN=$NX_DIR/bin # if you change that, be sure to also change the public keys
+PATH_LIB=$NX_DIR/lib
+NX_ETC_DIR=/etc/nxserver
+NX_SESS_DIR=/var/lib/nxserver/db
+NX_HOME_DIR=/var/lib/nxserver/home
+
+# Advanced users ONLY
+AGENT_LIBRARY_PATH="" #Calculated
+PROXY_LIBRARY_PATH="" #Calculated
+APPLICATION_LIBRARY_PATH="" #Calculated
+APPLICATION_LIBRARY_PRELOAD="" #Calculated
+
+# the name of the authorized keys file for ssh
+SSH_AUTHORIZED_KEYS="authorized_keys2"
+
+#########################################################################
+# Default Values
+# A user should NEVER touch this, edit $NX_ETC_DIR/node.conf instead
+#########################################################################
+
+# General FreeNX directives
+
+SERVER_NAME="$(hostname)"
+SSHD_PORT=22
+
+# Authentication / Security directives
+
+ENABLE_USERMODE_AUTHENTICATION="0"
+ENABLE_PASSDB_AUTHENTICATION="1"
+ENABLE_SSH_AUTHENTICATION="1"
+ENABLE_SU_AUTHENTICATION="0"
+ENABLE_USER_DB="0"
+
+ENABLE_FORCE_ENCRYPTION="0"
+SSHD_CHECK_IP="0"
+
+
+# Restriction directives
+
+DISPLAY_BASE=1000
+SESSION_LIMIT=200
+SESSION_USER_LIMIT="" #Calculated
+DISPLAY_LIMIT=200
+
+ENABLE_PERSISTENT_SESSION="all"
+DISABLE_PERSISTENT_SESSION=""
+
+
+# Logging directives
+
+NX_LOG_LEVEL=0
+NX_LOG_SECURE=1
+NX_LOGFILE=/var/log/nxserver.log
+SESSION_LOG_CLEAN=1
+SESSION_HISTORY=2592000
+
+
+# Forwarding directives
+
+ENABLE_SERVER_FORWARD="0"
+SERVER_FORWARD_HOST=""
+SERVER_FORWARD_PORT=22
+SERVER_FORWARD_KEY="/usr/NX/share/client.id_dsa.key"
+
+ENABLE_NOMACHINE_FORWARD_USER="0"
+NOMACHINE_SERVER="/usr/NX/bin/nxserver"
+NOMACHINE_NX_HOME_DIR="/usr/NX/home/nx"
+
+ENABLE_NOMACHINE_FORWARD_PORT="0"
+NOMACHINE_FORWARD_PORT="22"
+
+
+# Services directives
+
+ENABLE_ESD_PRELOAD="0"
+ESD_BIN_PRELOAD="esddsp"
+ENABLE_ARTSD_PRELOAD="0"
+ARTSD_BIN_PRELOAD="artsdsp"
+
+ENABLE_KDE_CUPS="0"
+KDE_PRINTRC="" # Calculated
+CUPS_ETC="/etc/cups/"
+
+# Path directives
+
+USER_FAKE_HOME="" #Calculated
+SET_LD_LIBRARY_PATH="1"
+
+DEFAULT_X_WM=""
+KILL_DEFAULT_X_WM="1"
+USER_X_STARTUP_SCRIPT=.Xclients
+DEFAULT_X_SESSION=/etc/X11/xdm/Xsession
+COMMAND_START_KDE=startkde
+COMMAND_START_GNOME=gnome-session
+COMMAND_START_CDE=cdwm
+COMMAND_XTERM=xterm
+COMMAND_XAUTH=/usr/X11R6/bin/xauth
+COMMAND_SMBMOUNT=smbmount
+COMMAND_SMBUMOUNT=smbumount
+COMMAND_NETCAT=netcat
+COMMAND_SSH=ssh
+COMMAND_SSH_KEYGEN=ssh-keygen
+COMMAND_CUPSD=/usr/sbin/cupsd
+COMMAND_MD5SUM=md5sum
+
+
+# Misc directives
+
+ENABLE_AUTORECONNECT="0"
+ENABLE_AUTORECONNECT_BEFORE_140="1"
+EXPORT_USERIP="0"
+EXPORT_SESSIONID="0"
+NODE_AUTOSTART=""
+ENABLE_ROOTLESS_MODE="0"
+ENABLE_1_5_0_BACKEND="0"
+ENABLE_USESSION="0"
+COMMAND_SESSREG="sessreg"
+AGENT_EXTRA_OPTIONS_RFB=""
+AGENT_EXTRA_OPTIONS_RDP=""
+AGENT_EXTRA_OPTIONS_X=""
+AGENT_STARTUP_TIMEOUT="60"
+AGENT_FONT_SERVER=""
+PROXY_TCP_NODELAY="0"
+PROXY_EXTRA_OPTIONS=""
+
+############################################################################
+# OS specific directives
+############################################################################
+
+OS="$( uname -sr )"
+
+case "$OS" in
+	"SunOS 5.10")
+		DEFAULT_X_WM=cdwm
+		DEFAULT_X_SESSION=/etc/X11/gdm/Xsession
+		COMMAND_XTERM=/usr/openwin/bin/xterm
+		COMMAND_XAUTH=/usr/openwin/bin/xauth
+		COMMAND_CUPSD=/opt/sfw/cups/sbin/cupsd
+		COMMAND_MD5SUM=gmd5sum
+		PATH=/usr/xpg4/bin:/usr/openwin/bin:$PATH
+		export PATH
+		;;
+esac
+
+# replace incompatible commands
+
+case "$OS" in
+       "SunOS 5.10")
+               function which()
+               {
+                       [ -e "$1" ] && echo $1 && return 0
+                       [ -z "$1" ] && return 1
+                       for i in  $(echo $PATH | tr ":" "\n"); do
+                               [ -e $i/$1 ] && echo $i/$1 && return 0
+                       done
+                       return 1
+               }
+       ;;
+esac
+
+#########################################################################
+# node.conf file evaluation
+#########################################################################
+
+if [ -d $NX_ETC_DIR/node.conf.d ]
+then
+	for i in $NX_ETC_DIR/node.conf.d/*
+	do
+		[ -e $i ] && . $i
+	done
+fi
+
+[ -e $NX_ETC_DIR/node.conf ] && . $NX_ETC_DIR/node.conf
+[ "$USERCONF" = "yes" -a -e $NX_ETC_DIR/$USER.node.conf ] && . $NX_ETC_DIR/$USER.node.conf
+
+
+#########################################################################
+# Calculated values
+#########################################################################
+
+[ -z "$SESSION_USER_LIMIT" ] && SESSION_USER_LIMIT=$SESSION_LIMIT
+[ -z "$USER_FAKE_HOME" ] && USER_FAKE_HOME=$HOME
+
+[ -z "$AGENT_LIBRARY_PATH" ] && AGENT_LIBRARY_PATH=$PATH_LIB
+[ -z "$PROXY_LIBRARY_PATH" ] && PROXY_LIBRARY_PATH=$PATH_LIB
+[ -z "$APPLICATION_LIBRARY_PATH" ] && APPLICATION_LIBRARY_PATH=$PATH_LIB
+[ -z "$APPLICATION_LIBRARY_PRELOAD" ] && APPLICATION_LIBRARY_PRELOAD="$APPLICATION_LIBRARY_PATH/libX11.so.6.2:$APPLICATION_LIBRARY_PATH/libXext.so.6.4:$APPLICATION_LIBRARY_PATH/libXcomp.so.1:$APPLICATION_LIBRARY_PATH/libXcompext.so.1:$APPLICATION_LIBRARY_PATH/libXrender.so.1.2"
+
+[ -z "$KDE_PRINTRC" -a -n "$KDEHOME" ] && KDE_PRINTRC="$KDEHOME/share/config/kdeprintrc"
+[ -z "$KDE_PRINTRC" -a -z "$KDEHOME" ] && KDE_PRINTRC="$HOME/.kde/share/config/kdeprintrc"
+
+#########################################################################
+# Support for --check
+#########################################################################
+
+if [ "$CHECK" = "yes" ]
+then
+	ERROR="no"
+	WARNING="no"
+	
+	# Internal Stuff
+	
+	[ ! -d "$PATH_BIN" ] && \
+		ERROR="yes" && echo "Error: Invalid value \"PATH_BIN=$PATH_BIN\""
+	# Check for NX agents ...
+	
+	[ ! -f "$PATH_BIN/nxagent" ] && \
+		ERROR="yes" && echo "Error: Could not find nxagent in $PATH_BIN. Please install some OSS components."
+		
+	[ ! -f "$PATH_BIN/nxdesktop" ] && \
+		WARNING="yes" && echo "Warning: Could not find nxdesktop in $PATH_BIN. RDP sessions won't work."
+		
+	[ ! -f "$PATH_BIN/nxviewer" ] && \
+		WARNING="yes" && echo "Warning: Could not find nxviewer in $PATH_BIN. VNC sessions won't work."
+
+	# Check for paths
+		
+	[ ! -d "$PATH_LIB" ] && \
+		ERROR="yes" && echo "Error: Invalid value \"PATH_LIB=$PATH_LIB\""
+	[ ! -d "$NX_ETC_DIR" ] && \
+		ERROR="yes" && echo "Error: Invalid value \"NX_ETC_DIR=$NX_ETC_DIR\""
+	[ ! -d "$NX_SESS_DIR" ] && \
+		ERROR="yes" && echo "Error: Invalid value \"NX_SESS_DIR=$NX_SESS_DIR\""
+	[ ! -d "$NX_HOME_DIR" ] && \
+		ERROR="yes" && echo "Error: Invalid value \"NX_HOME_DIR=$NX_HOME_DIR\""
+
+	[ ! -d "$AGENT_LIBRARY_PATH" ] && \
+		ERROR="yes" && echo "Error: Invalid value \"AGENT_LIBRARY_PATH=$AGENT_LIBRARY_PATH\""
+	[ ! -d "$PROXY_LIBRARY_PATH" ] && \
+		ERROR="yes" && echo "Error: Invalid value \"PROXY_LIBRARY_PATH=$PROXY_LIBRARY_PATH\""
+	[ ! -d "$APPLICATION_LIBRARY_PATH" ] && \
+		ERROR="yes" && echo "Error: Invalid value \"APPLICATION_LIBRARY_PATH=$APPLICATION_LIBRARY_PATH\""
+	
+	OLD_IFS=$IFS
+	IFS=":"
+	for LIBRARY in $APPLICATION_LIBRARY_PRELOAD; do
+		[ ! -e $LIBRARY ] && \
+			ERROR="yes" && echo "Error: Invalid value \"APPLICATION_LIBRARY_PRELOAD=$APPLICATION_LIBRARY_PRELOAD\"" && break ;
+	done
+	IFS=$OLD_IFS
+	
+	[ -z "$SSH_AUTHORIZED_KEYS" ] && \
+		ERROR="yes" && echo "Error: Invalid value \"SSH_AUTHORIZED_KEYS=$SSH_AUTHORIZED_KEYS\""
+	
+	
+	# General FreeNX directives
+	
+	[ -z "$SERVER_NAME" ] && \
+		ERROR="yes" && echo "Error: Invalid value \"SERVER_NAME=$SERVER_NAME\""
+	[ -z $(echo "$SSHD_PORT" | egrep "^[1-9][0-9]{0,4}$") ] && \
+		ERROR="yes" && echo "Error: Invalid value \"SSHD_PORT=$SSHD_PORT\""
+	
+	
+	# Authentication / Security directives
+	
+	[ -z $(echo "$ENABLE_PASSDB_AUTHENTICATION" | egrep "^[0|1]$") ] && \
+		ERROR="yes" && echo "Error: Invalid value \"ENABLE_PASSDB_AUTHENTICATION=$ENABLE_PASSDB_AUTHENTICATION\""
+	[ -z $(echo "$ENABLE_SSH_AUTHENTICATION" | egrep "^[0|1]$") ] && \
+		ERROR="yes" && echo "Error: Invalid value \"ENABLE_SSH_AUTHENTICATION=$ENABLE_SSH_AUTHENTICATION:\""
+	[ -z $(echo "$ENABLE_SU_AUTHENTICATION" | egrep "^[0|1]$") ] && \
+		ERROR="yes" && echo "Error: Invalid value \"ENABLE_SU_AUTHENTICATION=$NENABLE_SU_AUTHENTICATION\""
+	[ -z $(echo "$ENABLE_USER_DB" | egrep "^[0|1]$") ] && \
+		ERROR="yes" && echo "Error: Invalid value \"ENABLE_USER_DB=$ENABLE_USER_DB\""
+	
+	[ -z $(echo "$ENABLE_FORCE_ENCRYPTION" | egrep "^[0|1]$") ] && \
+		ERROR="yes" && echo "Error: Invalid value \"ENABLE_FORCE_ENCRYPTION=$ENABLE_FORCE_ENCRYPTION\""
+	[ -z $(echo "$SSHD_CHECK_IP" | egrep "^[0|1]$") ] && \
+		ERROR="yes" && echo "Error: Invalid value \"SSHD_CHECK_IP=$SSHD_CHECK_IP\""
+	
+	
+	# Restriction directives
+	
+	[ -z $(echo "$DISPLAY_BASE" | egrep "^[1-9][0-9]{0,4}$") ] && \
+		ERROR="yes" && echo "Error: Invalid value \"DISPLAY_BASE=$DISPLAY_BASE\""
+	[ -z $(echo "$SESSION_LIMIT" | egrep "^[1-9][0-9]{0,4}$") ] &&  \
+		ERROR="yes" && echo "Error: Invalid value \"SESSION_LIMIT=$SESSION_LIMIT\""
+	[ -z $(echo "$SESSION_USER_LIMIT" | egrep "^[1-9][0-9]{0,4}$") -o $SESSION_USER_LIMIT -gt $SESSION_LIMIT ] && \
+		ERROR="yes" && echo "Error: Invalid value \"SESSION_USER_LIMIT=$SESSION_USER_LIMIT\""
+	[ -z $(echo "$DISPLAY_LIMIT" | egrep "^[1-9][0-9]{0,4}$") -o $DISPLAY_LIMIT -lt $SESSION_LIMIT ] && \
+		ERROR="yes" && echo "Error: Invalid value \"DISPLAY_LIMIT=$DISPLAY_LIMIT\""
+	
+	OLD_IFS=$IFS
+	IFS=","
+	if [ "$ENABLE_PERSISTENT_SESSION" != "all" ]
+	then
+		for USERNAME in $ENABLE_PERSISTENT_SESSION; do
+			[ "${USERNAME:0:1}" != "@" ] && [ -z $(getent passwd $USERNAME) ] && \
+				ERROR="yes" && echo "Error: Invalid value \"ENABLE_PERSISTENT_SESSION=$ENABLE_PERSISTENT_SESSION\"" && break ;
+			[ "${USERNAME:0:1}" = "@" ] && [ -z $(getent group ${USERNAME:1}) ] && \
+				ERROR="yes" && echo "Error: Invalid value \"ENABLE_PERSISTENT_SESSION=$ENABLE_PERSISTENT_SESSION\"" && break ;
+		done
+	fi
+	for USERNAME in $DISABLE_PERSISTENT_SESSION; do
+		[ "${USERNAME:0:1}" != "@" ] && [ -z $(getent passwd $USERNAME) ] && \
+			ERROR="yes" && echo "Error: Invalid value \"DISABLE_PERSISTENT_SESSION=$DISABLE_PERSISTENT_SESSION\"" && break ;
+		[ "${USERNAME:0:1}" = "@" ] && [ -z $(getent group ${USERNAME:1}) ] && \
+			ERROR="yes" && echo "Error: Invalid value \"DISABLE_PERSISTENT_SESSION=$DISABLE_PERSISTENT_SESSION\"" && break ;
+	done
+	IFS=$OLD_IFS
+	
+	
+	# Logging directives
+	
+	[ -z $(echo "$NX_LOG_LEVEL" | egrep "^[0-7]$") ] && \
+		ERROR="yes" && echo "Error: Invalid value \"NX_LOG_LEVEL=$NX_LOG_LEVEL\""
+	[ "$NX_LOG_LEVEL" != "0" -a ! -e "$NX_LOGFILE" ] && \
+		WARNING="yes" && echo "Warning: Invalid value \"NX_LOGFILE=$NX_LOGFILE\"" \
+					  && echo "         No loggfile will be kept."
+		# How do I check if another user might write to a file? ( -w checks only current user)
+	[ -z $(echo "$SESSION_LOG_CLEAN" | egrep "^[0|1]$") ] && \
+		ERROR="yes" && echo "Error: Invalid value \"SESSION_LOG_CLEAN=$SESSION_LOG_CLEAN\""
+	[ -z $(echo "$SESSION_HISTORY" | egrep "^-?[0-9]+$") ] && \
+		ERROR="yes" && echo "Error: Invalid value \"SESSION_HISTORY=$SESSION_HISTORY\""
+	
+	
+	# Forwarding directives
+	
+	[ -z $(echo "$ENABLE_SERVER_FORWARD" | egrep "^[0|1]$") ] && \
+		ERROR="yes" && echo "Error: Invalid value \"ENABLE_SERVER_FORWARD=$ENABLE_SERVER_FORWARD\""
+	[ "$ENABLE_SERVER_FORWARD" = "1" -a -z "$SERVER_FORWARD_HOST" ] && \
+		ERROR="yes" && echo "Error: Invalid value \"SERVER_FORWARD_HOST=$SERVER_FORWARD_HOST\"" 
+		# Any ideas on how I can check for a VALID host is velcome!
+		# In my private scripts I use 'resolveip -q' and check if output conforms to [0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}, 
+		# but resolveip is part of mysql, and I don't think I should add that dependancy...
+	[ "$ENABLE_SERVER_FORWARD" = "1" -a -z $(echo "$SERVER_FORWARD_PORT" | egrep "^[1-9][0-9]{0,4}$") ] && \
+		ERROR="yes" && echo "Error: Invalid value \"SERVER_FORWARD_PORT=$SERVER_FORWARD_PORT\""
+	[ "$ENABLE_SERVER_FORWARD" = "1" -a ! -e "$SERVER_FORWARD_KEY" ] && \
+		ERROR="yes" && echo "Error: Invalid value \"SERVER_FORWARD_KEY=$SERVER_FORWARD_KEY\""
+	
+	[ -z $(echo "$ENABLE_NOMACHINE_FORWARD_USER" | egrep "^[0|1]$") ] && \
+		ERROR="yes" && echo "Error: Invalid value \"ENABLE_NOMACHINE_FORWARD_USER=$ENABLE_NOMACHINE_FORWARD_USER\""
+	[ -z $(echo "$ENABLE_NOMACHINE_FORWARD_PORT" | egrep "^[0|1]$") ] && \
+		ERROR="yes" && echo "Error: Invalid value \"ENABLE_NOMACHINE_FORWARD_PORT=$ENABLE_NOMACHINE_FORWARD_PORT\""
+	[ "$ENABLE_NOMACHINE_FORWARD_USER" = "1" -o "$ENABLE_NOMACHINE_FORWARD_PORT" = "1" ] && ! which "$NOMACHINE_SERVER" >/dev/null 2>&1 && \
+		ERROR="yes" && echo "Error: Invalid value \"NOMACHINE_SERVER=$NOMACHINE_SERVER\""
+	[ "$ENABLE_NOMACHINE_FORWARD_USER" = "1" -a ! -d "$NOMACHINE_NX_HOME_DIR" ] && \
+		ERROR="yes" && echo "Error: Invalid value \"NOMACHINE_NX_HOME_DIR=$NOMACHINE_NX_HOME_DIR\""
+	[ "$ENABLE_NOMACHINE_FORWARD_PORT" = "1" -a -z $(echo "$NOMACHINE_FORWARD_PORT" | egrep "^[1-9][0-9]{0,4}$") ] && \
+		ERROR="yes" && echo "Error: Invalid value \"NOMACHINE_FORWARD_PORT=$NOMACHINE_FORWARD_PORT\""
+	
+	
+	# Services directives
+	
+	[ -z $(echo "$ENABLE_ESD_PRELOAD" | egrep "^[0|1]$") ] && \
+		ERROR="yes" && echo "Error: Invalid value \"ENABLE_ESD_PRELOAD=$ENABLE_ESD_PRELOAD\""
+	[ "$ENABLE_ESD_PRELOAD" = "1" ] && ! which "$ESD_BIN_PRELOAD" >/dev/null 2>&1 && \
+		WARNING="yes" && echo "Warning: Invalid value \"ESD_BIN_PRELOAD=$ESD_BIN_PRELOAD\"" \
+					  && echo "         No esd preload will be performed."
+	
+	[ -z $(echo "$ENABLE_ARTSD_PRELOAD" | egrep "^[0|1]$") ] && \
+		ERROR="yes" && echo "Error: Invalid value \"ENABLE_ARTSD_PRELOAD=$ENABLE_ARTSD_PRELOAD\""
+	[ "$ARTSD_BIN_PRELOAD" = "1" ] && ! which "$ARTSD_BIN_PRELOAD" >/dev/null 2>&1 && \
+		WARNING="yes" && echo "Warning: Invalid value \"ARTSD_BIN_PRELOAD=$ARTSD_BIN_PRELOAD\"" \
+					  && echo "         No arts preload will be performed."
+	
+	[ -z $(echo "$ENABLE_KDE_CUPS" | egrep "^[0|1]$") ] && \
+		ERROR="yes" && echo "Error: Invalid value \"ENABLE_KDE_CUPS=$ENABLE_KDE_CUPS\""
+	[ "$ENABLE_KDE_CUPS" = "1" -a ! -e "$KDE_PRINTRC" ] && \
+		ERROR="yes" && echo "Error: Invalid value \"KDE_PRINTRC=$KDE_PRINTRC\""
+	[ ! -e "$CUPS_ETC/mime.types" -o ! -e "$CUPS_ETC/mime.convs" ] && \
+		WARNING="yes" && echo "Warning: Invalid value \"CUPS_ETC=$CUPS_ETC\"" \
+					  && echo "         Users will not be able to enable printing."
+	
+	# Path directives
+	
+	[ ! -d "$USER_FAKE_HOME" ] && \
+		ERROR="yes" && echo "Error: Invalid value \"USER_FAKE_HOME=$USER_FAKE_HOME\""
+	[ -z $(echo "$SET_LD_LIBRARY_PATH" | egrep "^[0|1]$") ] && \
+		ERROR="yes" && echo "Error: Invalid value \"SET_LD_LIBRARY_PATH=$SET_LD_LIBRARY_PATH\""
+	
+	[ "$DEFAULT_X_WM" != "" ] && ! which "$DEFAULT_X_WM" >/dev/null 2>&1 && \
+		ERROR="yes" && echo "Error: Invalid value \"DEFAULT_X_WM=$DEFAULT_X_WM\""
+	[ "$DEFAULT_X_WM" != "" -a  -z $(echo "$KILL_DEFAULT_X_WM" | egrep "^[0|1]$") ] && \
+		ERROR="yes" && echo "Error: Invalid value \"KILL_DEFAULT_X_WM=$KILL_DEFAULT_X_WM\""
+	[ -z "$USER_X_STARTUP_SCRIPT" ] && \
+		ERROR="yes" && echo "Error: Invalid value \"USER_X_STARTUP_SCRIPT=$USER_X_STARTUP_SCRIPT\""
+	! which "$DEFAULT_X_SESSION" >/dev/null 2>&1 && \
+		WARNING="yes" && echo "Warning: Invalid value \"DEFAULT_X_SESSION=$DEFAULT_X_SESSION\"" \
+					  && echo "         Users might not be able to request a default X session."
+	! which "$COMMAND_START_KDE" >/dev/null 2>&1 && \
+		WARNING="yes" && echo "Warning: Invalid value \"COMMAND_START_KDE=$COMMAND_START_KDE\"" \
+					  && echo "         Users will not be able to request a KDE session."
+	! which "$COMMAND_START_GNOME" >/dev/null 2>&1 && \
+		WARNING="yes" && echo "Warning: Invalid value \"COMMAND_START_GNOME=$COMMAND_START_GNOME\"" \
+					  && echo "         Users will not be able to request a Gnome session."
+	! which "$COMMAND_START_CDE" >/dev/null 2>&1 && \
+		WARNING="yes" && echo "Warning: Invalid value \"COMMAND_START_CDE=$COMMAND_START_CDE\"" \
+					  && echo "         Users will not be able to request a CDE session."
+	! which "$COMMAND_XTERM" >/dev/null 2>&1 && \
+		WARNING="yes" && echo "Warning: Invalid value \"COMMAND_XTERM=$COMMAND_XTERM\"" \
+					  && echo "         Users will not be able to request an xterm session."
+	! which "$COMMAND_XAUTH" >/dev/null 2>&1 && \
+		ERROR="yes" && echo "Error: Invalid value \"COMMAND_XAUTH=$COMMAND_XAUTH\""
+	! which "$COMMAND_SMBMOUNT" >/dev/null 2>&1 && \
+		WARNING="yes" && echo "Warning: Invalid value \"COMMAND_SMBMOUNT=$COMMAND_SMBMOUNT\". You'll not be able to use SAMBA. "
+	! which "$COMMAND_SMBUMOUNT" >/dev/null 2>&1 && \
+		WARNING="yes" && echo "Warning: Invalid value \"COMMAND_SMBUMOUNT=$COMMAND_SMBUMOUNT\". You'll not be able to use SAMBA."
+	! which "$COMMAND_NETCAT" >/dev/null 2>&1 && \
+		ERROR="yes" && echo "Error: Invalid value \"COMMAND_NETCAT=$COMMAND_NETCAT\""
+	! which "$COMMAND_SSH" >/dev/null 2>&1 && \
+		ERROR="yes" && echo "Error: Invalid value \"COMMAND_SSH=$COMMAND_SSH\""
+	! which "$COMMAND_SSH_KEYGEN" >/dev/null 2>&1 && \
+		ERROR="yes" && echo "Error: Invalid value \"COMMAND_SSH_KEYGEN=$COMMAND_SSH_KEYGEN\""
+	! which "$COMMAND_CUPSD" >/dev/null 2>&1 && \
+		WARNING="yes" && echo "Warning: Invalid value \"COMMAND_CUPSD=$COMMAND_CUPSD\"" \
+					  && echo "         Users will not be able to enable printing."
+	! which "$COMMAND_MD5SUM" >/dev/null 2>&1 && \
+		ERROR="yes" && echo "Error: Invalid value \"COMMAND_MD5SUM=$COMMAND_MD5SUM\""
+
+	# Check for expect
+	COMMAND_EXPECT=$(head -n1 $PATH_BIN/nxnode-login | cut -d'!' -f2)
+	! which "$COMMAND_EXPECT" >/dev/null 2>&1 && \
+		ERROR="yes" && echo "Error: expect necessary for $PATH_BIN/nxnode-login could not be found in '$COMMAND_EXPECT'. Please install it or change nxnode-login accordingly."
+
+	# Misc directives
+	
+	[ -z $(echo "$ENABLE_AUTORECONNECT" | egrep "^[0|1]$") ] && \
+		ERROR="yes" && echo "Error: Invalid value \"ENABLE_AUTORECONNECT=$ENABLE_AUTORECONNECT\""
+	[ -z $(echo "$ENABLE_AUTORECONNECT_BEFORE_140" | egrep "^[0|1]$") ] && \
+		ERROR="yes" && echo "Error: Invalid value \"ENABLE_AUTORECONNECT_BEFORE_140=$ENABLE_AUTORECONNECT_BEFORE_140\""
+	
+	[ -z $(echo "$EXPORT_USERIP" | egrep "^[0|1]$") ] && \
+		ERROR="yes" && echo "Error: Invalid value \"EXPORT_USERIP=$EXPORT_USERIP\""
+	[ -z $(echo "$EXPORT_SESSIONID" | egrep "^[0|1]$") ] && \
+		ERROR="yes" && echo "Error: Invalid value \"EXPORT_SESSIONID=$EXPORT_SESSIONID\""
+	[ -n "$NODE_AUTOSTART" ] && ! which "$NODE_AUTOSTART" >/dev/null 2>&1 && \
+		WARNING="yes" && echo "Warning: Invalid value \"NODE_AUTOSTART=$NODE_AUTOSTART\"" \
+					  && echo "         No autostart will be performed."
+
+	[ -z $(echo "$ENABLE_ROOTLESS_MODE" | egrep "^[0|1]$") ] && \
+		ERROR="yes" && echo "Error: Invalid value \"ENABLE_ROOTLESS_MODE=$ENABLE_ROOTLESS_MODE\""
+		
+	[ -z $(echo "$ENABLE_1_5_0_BACKEND" | egrep "^[0|1]$") ] && \
+		ERROR="yes" && echo "Error: Invalid value \"ENABLE_1_5_0_BACKEND=$ENABLE_1_5_0_BACKEND\""
+		
+	[ "$ENABLE_ROOTLESS_MODE" = "1" -a "$ENABLE_1_5_0_BACKEND" = "0" ] && \
+		ERROR="yes" && echo "Error: Rootless mode can just be used with 1.5.0 backend."
+
+	[ "$ENABLE_1_5_0_BACKEND" = "1" -a -z "$(strings $PATH_BIN/nxagent | grep 'NXAGENT - Version 1.5.0')" ] && \
+		ERROR="yes" && echo "Error: Could not find 1.5.0 version string in nxagent. NX 1.5.0 backend option must be used with 1.5.0 OSS components."
+
+	[ "$ENABLE_1_5_0_BACKEND" = "0" -a -n "$(strings $PATH_BIN/nxagent | grep 'NXAGENT - Version 1.5.0')" ] && \
+		WARNING="yes" && echo "Warning: 1.5.0 OSS components found, but ENABLE_1_5_0 backend option is not set."
+
+	[ -z $(echo "$ENABLE_USESSION" | egrep "^[0|1]$") ] && \
+		ERROR="yes" && echo "Error: Invalid value \"ENABLE_USESSION=$ENABLE_USESSION\""
+	[ "$ENABLE_USESSION" = "1" ] && ! which "$COMMAND_SESSREG" >/dev/null 2>&1 && \
+		WARNING="yes" && echo "Warning: Invalid value \"COMMAND_SESSREG=$COMMAND_SESSREG\"" \
+					  && echo "         Logged in users will not be registered with sessreg."
+	
+	#AGENT_EXTRA_OPTIONS_RFB=""
+	#AGENT_EXTRA_OPTIONS_RDP=""
+	#AGENT_EXTRA_OPTIONS_X=""
+	#PROXY_EXTRA_OPTIONS=""
+		#Can these be checked???
+	
+	#AGENT_FONT_SERVER=""
+		#Any ideas on how I can check for a VALID host is velcome!
+	
+	[ -z $(echo "$PROXY_TCP_NODELAY" | egrep "^[0|1]$") ] && \
+		ERROR="yes" && echo "Error: Invalid value \"PROXY_TCP_NODELAY=$PROXY_TCP_NODELAY\""
+	
+	
+	if [ "$ERROR" = "yes" ]
+	then
+		echo
+		echo "  Errors occured during config check."
+		echo "  Please correct the configuration file."
+		echo
+		[ "$NXLCFG_IGNORE_ERRORS" = "no" ] && exit 1 || exit 0
+	elif [ "$WARNING" = "yes" ]
+	then
+		echo
+		echo "  Warnings occured during config check."
+		echo "  To enable these features please correct the configuration file."
+		echo
+	fi
+fi

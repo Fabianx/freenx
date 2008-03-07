@@ -1,0 +1,140 @@
+#!/bin/sh
+#
+# nxcupsd-wrapper - Copyright (c) 2007 by Fabian Franz <freenx@fabian-franz.de>
+#
+# License: GPL
+#
+
+# configuration
+SYSTEM_CUPSD="/usr/sbin/cupsd"
+
+# We do not want to use the NoMachine libraries for CUPS
+export LD_LIBRARY_PATH=""
+
+# Test if PidFile is written automatically
+
+HAS_PIDFILE=""
+strings $SYSTEM_CUPSD | grep -q "PidFile" && HAS_PIDFILE="1"
+
+#
+# Functions
+#
+
+# Kill old cupsd if it exists
+
+kill_old_cupsd()
+{
+	[ -f "$NX_ROOT/cups/cupsd.pid" ] && CPID=$(cat "$NX_ROOT/cups/cupsd.pid")
+	[ -n "$CPID" ] && kill -0 $CPID && kill $CPID
+}
+# Update configuration
+
+update_cupsd_conf()
+{
+	# Remove PidFile information if its present
+	grep -q PidFile "$NX_ROOT/cups/cupsd.conf" && perl -pi -e 's/PidFile.*//' "$NX_ROOT/cups/cupsd.conf"
+
+	[ -n "$HAS_PIDFILE" ] && echo "PidFile $NX_ROOT/cups/cupsd-real.pid" >> $NX_ROOT/cups/cupsd.conf
+	echo "StateDir $NX_ROOT/cups/certs" >> $NX_ROOT/cups/cupsd.conf
+	echo "CacheDir $NX_ROOT/cups/cache" >> $NX_ROOT/cups/cupsd.conf
+	mkdir -p $NX_ROOT/cups/cache
+}
+
+prepare_automatic_download()
+{
+	# Prepare automatic download of cupsd files
+
+	mkdir -p $NX_ROOT/cups/ppd/
+
+	LANG=C LC_ALL=C lpstat -s | egrep "^device" | while read x x printer destination
+	do
+		proto=$(echo $destination | cut -d: -f1)
+		printer=$(echo $printer | cut -d: -f1)
+		if [ $proto = "ipp" -o "$proto" = "http" ]
+		then
+			# get it from remote printer
+			wget -q -t 1 -T 1 ${destination/ipp/http}.ppd -O "$NX_ROOT/cups/ppd/${printer}_nxdl.ppd"
+		else
+			# get it from local host
+			[ -z "$IPP_PORT" ] && IPP_PORT=631
+			wget -q -t 1 -T 1 "http://127.0.0.1:$IPP_PORT/printers/$printer.ppd" -O "$NX_ROOT/cups/ppd/${printer}_nxdl.ppd"
+		fi
+	done
+}
+
+# Start the system cupsd
+
+start_cupsd_without_pidfile()
+{
+	$SYSTEM_CUPSD -f "$@" &
+	CPID=$!
+	echo "$CPID" >"$NX_ROOT/cups/cupsd-real.pid"
+	trap "" SIGHUP
+	trap "kill $CPID; rm -f \"$NX_ROOT\"/cups/cupsd-real.pid" EXIT
+	wait $CPID
+	echo "Cupsd exited with status: $?" >> "$NX_ROOT/cups/error_log"
+	rm -f "$NX_ROOT/cups/cupsd-real.pid"
+}
+
+start_cupsd()
+{
+
+	if [ -n "$HAS_PIDFILE" ]
+	then
+		$SYSTEM_CUPSD "$@" 
+	else
+		start_cupsd_without_pidfile "$@" &
+		disown $!
+	fi
+}
+
+update_status()
+{
+	update_cupsd_conf
+	prepare_automatic_download
+}
+
+reload_cupsd()
+{
+	echo "Reload cupsd ..."
+	update_status
+	kill -HUP $(cat "$NX_ROOT/cups/cupsd-real.pid" 2>/dev/null)
+}
+
+kill_cupsd()
+{
+	kill $(cat "$NX_ROOT/cups/cupsd-real.pid" 2>/dev/null)
+}
+
+# signal handling
+
+monitor_cupsd_internal()
+{
+	trap "reload_cupsd" SIGHUP
+	trap "kill_cupsd; rm -f \"$NX_ROOT/cups/cupsd.pid\"" EXIT
+
+	sleep 5
+	
+	while kill -0 $(cat "$NX_ROOT/cups/cupsd-real.pid" 2>/dev/null) 2>/dev/null
+	do
+		sleep 5
+		grep -q "cups/cupsd.pid" "$NX_ROOT/cups/cupsd.conf" && reload_cupsd
+	done
+	
+	rm -f "$NX_ROOT/cups/cupsd.pid"
+}
+
+monitor_cupsd()
+{
+	monitor_cupsd_internal &
+	MPID=$!
+	disown $MPID
+	echo "$MPID" >"$NX_ROOT/cups/cupsd.pid"
+}
+
+# Main program
+
+kill_old_cupsd
+update_status
+start_cupsd "$@"
+monitor_cupsd

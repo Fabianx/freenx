@@ -1,0 +1,25 @@
+#!/bin/sh
+
+# nxfish - Copyright (c) 2007 by Fabian Franz.
+#
+#   A simple client for the nxfish kio_slave.
+#
+# This is just a sample script how nxfish could be used on a NX server.
+# It gets the cookie from the NXSESSIONID filedir and encrypts it.
+# Then it sends the cookie and gives control to netcat.
+#
+# If NXFISH_SERVER is set netcat does connect to that one.
+# 
+# The default of 6201 is arbitrary and could as well be DISPLAY+11000
+# once proper forwarding is done.
+#
+# For now this script assumes that you set up the forwarding yourself via ssh -R.
+
+rawcookie=$(cat $HOME/.nx/C-$NXSESSIONID/options | tr ',' '\n' | grep cookie= | cut -d= -f2)
+
+# We use SHA so that no one can get our original session cookie
+cookie=$(htpasswd -nbs nxfish ":NXFISH:$rawcookie" | cut -d: -f2 )
+
+[ -z "$NXFISH_SERVER" ] && NXFISH_SERVER="localhost 6201"
+
+(echo "#PASS $cookie"; cat -) | netcat $NXFISH_SERVER

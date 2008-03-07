@@ -1,0 +1,56 @@
+NXClient
+
+ Responsible for estabilishing the connection
+
+ Properties:
+
+ host         - server in which to log in
+ port         - ssh port to connect to
+ username     - username to use inside the session
+ password     - password to use inside the session
+ sshkey       - ssh private key location for nxssh to use, defaults to
+                '$HOME/.nx/id_dsa'
+ 
+ session      - instance of NXSession
+
+ Methods:
+
+ connect ()         - estabilish a connection using the information
+                      stored on the properties
+ list_sessions ()   - returns a list of running sessions for current
+                      user
+ start_session ()   - starts the session defined in self.session
+ resume_session ()  - resume session in self.session
+ set_session ()     - sets session based on a NXSession instance
+
+NXSession
+
+ Meta-data about the session
+
+ Properties:
+
+ sname        - name for the session [--session]
+ stype        - type of the session (unix-gnome, unix-kde...) [--type]
+ cache        - size of the cache, defaults to '8M' [--cache]
+ images_cache - size of the images cache, defaults to '32M' [--images]
+ xcookie      - xauth cookie, defaults to output for:
+                "xauth list | awk '{ print $3 }'" [--cookie]
+ link         - network link type, defaults to 'adsl' [--link]
+ kbtype	      - keyboard model and layout, defaults to current X's 
+                display default, if any [--kbtype]
+ nodelay?
+ backingstore?
+ geometry     - geometry of the window opened by xagent, defaults to
+                '800x600+112+59' [--geometry]
+ media?
+ agent_server?
+ agent_user?
+ agent_password?
+ screeninfo   - information about current display, defaults to data
+                gathered from the current X display, if any [--screeninfo]
+
+ Methods:
+
+ get_start_params_line () - return a string containing the command line to
+                            go after 'startsession' for starting this
+			    session

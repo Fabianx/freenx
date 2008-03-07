@@ -1,0 +1,267 @@
+0?.09.2005 FreeNX 0.4.5 "aKademy Edition"
+	* Made nxsetup more user-friendly and hopefully finally failsafe.
+	* Added --agent to nxnode/nxserver to allow easier debugging.
+	* Added addgroup/groupadd to nxsetup
+	* Added --ignore-errors support on nxsetup/nxloadconfig
+	* Added check for expect.
+
+06.08.2005 FreeNX 0.4.4 "UKUUG Enterprise Edition"
+	* Added ENABLE_1_5_0_BACKEND configuration directive:
+		* Fixed fullscreen support in nxdesktop (still feels more like
+		  'Available Area', but with Ctrl-Alt-F you can get "real"
+		  fullscreen)
+	* Added COMMAND_MD5SUM directive
+	* Security: $USER_FAKE_HOME/.nx now gets 0700
+	* Fixed support for CUPS forwarding.
+	* Added secure re-transmitting to client.
+	* Removed grep from getent to not search through the whole database.
+	  (Suggestion by "Matthew S. Harris" <mharris@google.com>,
+	                 "Ed Warnicke"       <eaw@cisco.com>)
+	* Set sleeps to 60 instead of 10 seconds, removed one wrong trap.
+	  (Suggestion by "Sunil" <funtoos@yahoo.com>)
+	* Made automatic timeout configurable.
+	  (Patch by "Ed Warnicke" <eaw@cisco.com>)
+	* Made nxsetup more enterprise friendly. Added --localuser
+	  (RedHat only) and --gid. 
+	  (Based on a patch by "Ed Warnicke" <eaw@cisco.com>)
+	* Fixed resume of multiple sessions.	
+
+28.07.2005 FreeNX 0.4.3 "NoMachine 1.5.0 Edition"
+	* Fixed reconnection problems with !M 1.5.0 client.
+	* Fixed reconnection problems with !M 1.5.0 backend.
+	* Added evaluation of $NX_ETC_DIR/node.conf.d/* config files.
+	* Fixed a possible security problem. (The client was able
+	  to overwrite parameters set by the server)
+	* Added ENABLE_1_5_0_BACKEND configuration directive:
+		* Added support for fake cookie authentication with
+		  !M 1.5.0 client and 1.5.0 backend.
+		* Fixed nxagent termination problems with !M 1.5.0
+		  backend.
+		* Added RDP highcolor support for !M 1.5.0 client
+		  with !M 1.5.0 backend.
+	* Added secure logging - Passwords are no longer shown in log files.
+	* Security: Certain passwords for VNC/RDP could have been visible via 
+	  `ps aux`.
+	* Added experimental usermode authentication scheme.
+	  (Disabled by default)
+
+16.07.2005 FreeNX 0.4.2 "Solaris / Bugfix / Linux Infotag Pforzheim Edition"
+	* Removed forwarding support via "freenx.<user>", because it was
+	  buggy.
+	* Cleaned up lots of code.
+		* Fixed one case of a left over file.
+		* Removed one unnecessary usage of a temporary file.
+	* Added exit handlers in nxserver and nxnode for more stability on 
+	  reboot of system.
+	* Changed nxnode to be much more stable.
+		* Catched one additional "unclean termination of nxagent" 
+		  case, which lead to "zombie" sessions.
+	* Reworked reconnection support for more stability.
+		* Added displaying of reconnection failure in
+		  system log / client ssh log.
+	* Added even more possibilities to catch and report session startup 
+	  failures.
+	* Fixed PNG and JPEG-levels pack method.
+	* Added usage of netcat -z to check that the port is really not used by
+	  another agent.
+	* Added nxserver --cleanup, which terminates all running sessions.
+	  Useful after a power outage.
+	* Fixed nxclient invocation with non-standard installation path
+	* Added detection of SSH2_CLIENT variable (commercial ssh)
+	* Finally fixed problems with GNOME.
+	* FINALLY added Solaris Support Patch.
+
+24.06.2005 FreeNX 0.4.1 "LinuxTag Edition"
+	* Fixed a small security problem giving access to session database.
+	* Added support for 1.5.0 OSS components. (especially rootless mode)
+	* Fixed Filesharing over the Internet. (Thanks to rogierm@users.berlios.de)
+	* Fixed Resume on Windows with non-fullscreen sessions.
+	* Added suspend/resume support for 1.5.0 OSS components.
+	* Fixed display of suspended sessions in nxserver --list.
+
+04.05.2005 FreeNX 0.4.0 "SambaXP Edition"
+	* Opened the 0.4.0 branch.
+	* Added initial support for filesharing via samba.
+	* Improvements to be more node.conf compatible.
+	* Added COMMAND_NETCAT, COMMAND_SSH & COMMAND_SSH_KEYGEN directive
+	* Added support for 'nxloadconfig --check' to validate node.conf 
+	  settings
+	* Added initial support for sound (esd/artsd).
+	* Added optional support for utmp/wtmp/lastlog database.
+	* Removed support for OSS components prior version 1.4.0 in nxnode.
+	  Added -option option to nxagent/nxdesktop/nxviewer.
+	* Added forwarding to commercial server via destination port.
+	* Added more compatible getparam function
+	* Sets LD_PRELOAD for applications and LD_LIBRARY_PATH for 
+	  nxagent/nxproxy by default.
+		- SET_LD_LIBRARY_PATH replaces NX_NOMACHINE_WAY and is 
+		  enabled by default, as it is now safe to do so
+	* Implemented SSHD_CHECK_IP directive.
+	* Added the SESSION_HISTORY directive. Session history will by default 
+	  be kept for 30 days.
+	* Implemented DEFAULT_X_WM for unix-application virtual desktop mode.
+	* Implemented SESSION_LIMIT and SESSION_USER_LIMIT.
+	* Fixed nxviewer commandline for geometry and fullscreen-support
+	* Added NX_LOG_LEVEL instead of NX_LOGGING, allowing less verbose 
+	  logfile.
+	* Added SESSION_LOG_CLEAN for configurable removal of the temporary 
+	  session directory.
+	* Added "--ssh2" cmdline switch for commercial ssh2-server support 
+	  in nxsetup.
+	* Added ENABLE_FORCE_ENCRYPTION to enforce the usage of encryption on 
+	  the server.
+	* Added nxprint and added -printer to nxclient together with handling
+	  of drivers cache.
+	* Fixed a possible race-condition. (reported by Edward Warnicke
+	  <eaw@cisco.com>)
+	* Feature Request #847 (stderror of some applications to log-file)
+	* Feature Request #900 (Detect ssh/sshd in nxsetup)
+	* Added printing support via userspace CUPSd and Samba.
+
+20.03.2005 FreeNX 0.3.1 "Bugfix Edition"
+	* Fixed keyboard mapping problems.
+	* Fixed unix-custom mode; now allowing parameters to be passed.
+	* Fixed password prompt detection support in nxnode-login.
+	* Fixed locking to prevent usage of the same display.
+	* Fixed resume when agent is no longer there.
+	* Fixed error message shown to user, when session startup fails.
+	* Fixed handling of /tmp/.X*-lock files.
+	* Fixed handling of not closed sessions in "Terminating" status.
+	* Fixed resume of multiple suspended sessions.
+
+05.03.2005 FreeNX 0.3.0 "Chemnitzer LinuxTage Edition"
+	* Initial CVS checkin.
+	* Added unix-default as session type - by Kalev Lember 
+	  <kalev@smartlink.ee>
+	* Fixed nxclient loop - by "Neil Wilson" <neil@aldur.co.uk>.
+	* Several fixes by Thorsten Sandfuchs <fux@users.berlios.de>.
+	* Optional config file support (system- and user-wide)
+		- by Jon Severinsson <jonno@users.berlios.de>.
+	* Moved logfile to /var/log/nxserver.log.
+	* Moved nx homedir to /var/lib/nxserver/home
+	* Complete rewrite of authentication code
+		* passdb, su or ssh is now supported.
+		- by Jon Severinsson <jonno@users.berlios.de>.
+	* Added NODE_AUTOSTART, EXPORT_{USERIP/SESSIONID} config file
+	  directives.
+	* Added mechanism to forward connection to commercial NoMachine 
+	  nxserver (as available from www.nomachine.com).
+	* Added mechanism to forward connection to another nxserver. This
+	  allows using a "chain" of nxservers.
+	* Added "floating window" support by using rootless nxagent as
+	  it will be standard in NX 1.5.0.
+	* Added "floating window" support by just nxproxy/nxproxy connection
+	  and added configuration directive to enable rootless mode.
+	* Added nxsetup --uninstall and added more feature to nxsetup.
+	  Note: You need to use nxsetup --install for installation now.
+	* Added Disabling of port-forwarding, X11-forwarding, ... to ssh-key.
+
+	* Security: Fixed a security blunder. Authority file was not used 
+	            and so basically xhost +localhost was set. (ported from
+		    0.2.8)
+		    
+		    Update immediately.
+                   
+	* Security: Fixed two possible security problems (umask was not set
+                   correctly; ported from 0.2.8)
+
+20.11.2004 FreeNX 0.2.7 "Skolelinux Edition"
+	* Fix nxserver to work again with KNX-Client. ('\r' is evil)
+	* Fix timeout in nxnode-login to allow proper session management
+	  again.
+	* Fixed possible race condition for the wait-file.
+
+11.11.2004 FreeNX 0.2.6
+	
+	* Security: Fixed a possible exploit in ssh-usage
+	    (thanx to Sebastian Krahmer from the SuSE security team)
+	* Important: Public/Private key is no longer used for PAM auth mode.
+	
+14.10.2004 FreeNX 0.2.5
+	* Added Xdialog interface for nxclient and automatic usage
+	  of commercial nxclient when available. (Thx go to Rick Stout 
+	  <zipsonic@gmail.com>)
+	* Added bugfix from the 0.3.0 branch for more flexible nxdesktop in
+	  nxnode.
+	* Added patch by Rick Stout for permission problems in nxnode.
+	* Added patch by Rick Stout for a typo in nxkeygen.
+	* Updated gentoo-nomachine.diff.
+	* Updated CONTRIB to include a description of lazy-image encoding.
+
+11.09.2004 FreeNX 0.2.4
+	* Added timeout to avoid having hanging tail processes.
+	* Added "locking" of the display-offset if nxagent failed to start.
+	* Fixed ssh encryption for resume on client 1.4.0-snapshot 5.
+	* Fixed mktemp, which was non-portable to FreeBSD and Red Hat 9.
+
+10.09.2004 FreeNX 0.2-3
+	* Added support for autoreconnection or autoreconnection just 
+	  for the case when an older client version is used.
+	  	* This makes it possible to use Reconnection with the 
+	  	  stable version 1.3.2-7 (enabled by default)
+	* Added instructions how to install the NoMachine sources to INSTALL
+	* Changed $NX_DIR/bin/ssh to ssh to fix gentoo-nomachine.diff
+	* Added nxkeygen by Stuart Herbert for easier change from the 
+	  NoMachine key to another key afterwards.
+	
+	* Security: Any user was able to change the status of other sessions
+	            in the session database by providing the correct uniqueid.
+
+10.09.2004 FreeNX 0.2-2
+	* Added additional support for safe session suspend, 
+	  autosuspend when network connection times out works now!
+	* AuthorizedKeysFile cannot be safely determined on Gentoo;
+	  changed it to config option now.
+	* Added config option to completely disable passdb support.
+	* Fixed bugs in nxclient dialog frontend.
+	* Removed all usage of nxssh due to security concerns from SuSE. 
+	* Fixed session management for knx client.
+	* Added detection of failed nxagent startup.
+	* Updated the gentoo-nomachine.diff to be not fuzzy.
+
+08.09.2004 FreeNX 0.2-1
+	* Fixed support for one windows client version. 
+	* Fixed setting of key with --adduser.
+	  (Thanks to Stuart Herbert <stuart@gentoo.org>)
+	* Fixed _some_ cases for AuthorizedKeysFile in sshd_config.
+	  (Thanks to Peter Holik <peter@holik.at>)
+
+	* Fixed gentoo-nomachine.diff (nxnode not in path, but nxnode-login would try that)
+	* Fixed the bug with hanging tail processes.
+
+07.09.2004 FreeNX 0.2-0
+	* Reworked the whole security model in nxsetup due to requests from SuSE and Gentoo.
+		- nxsetup does not use the NoMachine key by default. 
+		- PAM authentication is enabled by default.
+	
+	* Added nxclient for compatibility with nxclient -dialog mode.
+	
+	* Minor changes
+		* Added SSHD_AUTH_PORT to config vars in nxserver
+		* Made all programs NX_ aware
+		* Programs do now honor the setting of AuthorizedKeysFile in sshd_config
+		* Changed nxsetup check from direct reading of passwd to getent
+		  (Thanks to Tom Hibbert <tom@nsp.co.nz>)
+		* Changed overall messages in nxsetup
+	
+	* Made a overall clean upstream package.
+	* Added Gentoo / NoMachine compatibility diff
+
+06.09.2004 
+	* Added pam authentication
+	* Added user_db switch
+	* moved some su - to nxnode-login
+
+02.09.2004 
+	* Added support for snapshot 4 (43/66)
+	* Fixed compatibility issue with 1.3.0 
+	  (Used by Knoppix 3.4 and earlier)
+	* added sane logging (LOGGING is now properly used)
+
+20.06.2004 
+	* Added Protocol version 1.4.0
+	* Cleanup
+	* Added missing functions
+
+14.06.2004 
+	* Added Protocol version 1.3.2

@@ -1,0 +1,26 @@
+30th August 2005, Malaga, aKademy Conference.
+
+The FreeNX team is proud to present the development plan for the 0.5.0 release of FreeNX.
+
+First of all:
+
+Its ready when its ready.
+
+Second:
+
+It won't be released until:
+	- The documentation is finished
+	- The website is in good state, which can be marketed.
+	- Its ready ;-)
+
+There will however be several development snapshots to keep up the "release often and early" cycle.
+
+Plans for 0.5.0 include the rewrite of the Suspend / Resume / Session keep up management with the first priority on _stability_.
+
+0.5.0 also will only support the 1.5.0 backend and get lots of cleanup.
+
+Also planned is the integration of several features, like nxfish, and a fully featured OSS client.
+
+cu
+
+Fabian

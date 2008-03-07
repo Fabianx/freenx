@@ -1,0 +1,1425 @@
+#!/bin/bash
+
+# Free implementation of nxserver components
+#
+# To use nxserver add the user "nx" 
+# and use nxserver as default shell.
+#
+# Also make sure that hostkey based authentification works.
+# 
+# Copyright (c) 2004 by Fabian Franz <FreeNX@fabian-franz.de>.
+#
+# License: GNU GPL, version 2
+#
+# CVS: $Id: nxserver,v 1.74 2005/08/02 15:39:32 fabianx Exp $
+#
+
+# Read the config file
+. $(PATH=$(cd $(dirname $0) && pwd):$PATH which nxloadconfig) --
+
+# following two functions are Copyright by Klaus Knopper
+
+stringinstring(){
+case "$2" in *$1*) return 0;; esac
+return 1
+}
+
+# Reread boot command line; echo last parameter's argument or return false.
+getparam(){
+stringinstring "&$1=" "$CMDLINE" || return 1
+echo "$CMDLINE" |  tr "&" "\n" | egrep "^"$1"=" | awk -F= '{ VAL=$2 } END { print VAL }'
+return 0
+}
+
+
+############### PACKAGE passdb.bm #######################
+#
+# Library of passdb functions (outsource)
+#
+
+# Policy: Variable and function names _must_ start with passdb_ / PASSDB_
+
+# Needed global vars: $NX_ETC_DIR, $PATH_BIN
+
+# Needed nonstd functions: md5sum
+
+
+passdb_get_crypt_pass()
+{
+	echo "$@" | $COMMAND_MD5SUM | cut -d" " -f1
+}
+
+passdb_get_pass()
+{
+	PASSDB_CHUSER="$1"
+	PASSDB_PASS=$(egrep "^$PASSDB_CHUSER:" $NX_ETC_DIR/passwords 2>/dev/null | cut -d":" -f2)
+	if [ "$ENABLE_PASSDB_AUTHENTICATION" = "1" ]
+	then
+		egrep -q "^$PASSDB_CHUSER:" $NX_ETC_DIR/passwords 2>/dev/null && echo $PASSDB_PASS
+		egrep -q "^$PASSDB_CHUSER:" $NX_ETC_DIR/passwords 2>/dev/null || echo "NOT_VALID"
+	else
+		echo "NOT_VALID"
+	fi
+}
+
+passdb_chpass()
+{
+	PASSDB_CHUSER="$1"
+	PASSDB_ENC_PASS="$2"
+	cp -f $NX_ETC_DIR/passwords $NX_ETC_DIR/passwords.orig
+	perl -pi -e "s/$PASSDB_CHUSER:.*/$PASSDB_CHUSER:$PASSDB_ENC_PASS/g" $NX_ETC_DIR/passwords
+}
+
+passdb_user_exists()
+{
+	PASSDB_CHUSER="$1"
+	egrep -q "^$PASSDB_CHUSER:" $NX_ETC_DIR/passwords 2>/dev/null
+}
+
+
+passdb_remove_user()
+{
+	PASSDB_CHUSER="$1"
+	cp -f $NX_ETC_DIR/passwords $NX_ETC_DIR/passwords.orig
+	perl -pi -e "s/$PASSDB_CHUSER:.*\n//g" $NX_ETC_DIR/passwords
+}
+
+passdb_add_user()
+{
+	PASSDB_CHUSER="$1"
+	cp -f $NX_ETC_DIR/passwords $NX_ETC_DIR/passwords.orig
+	echo "$PASSDB_CHUSER:*" >> $NX_ETC_DIR/passwords
+	# deactivated to avoid problems with comm-server
+	su - $PASSDB_CHUSER -c "$PATH_BIN/nxnode --setkey"
+}
+
+passdb_list_user()
+{
+	cat $NX_ETC_DIR/passwords | cut -d":" -f1
+}
+
+#
+# End of passdb Library
+#
+
+############### PACKAGE session.bm #######################
+#
+# Library of session management functions
+#
+
+# Needed global vars: $NX_SESS_DIR
+
+session_list()
+{
+	cat $NX_SESS_DIR/running/sessionId"{$1}"
+}
+
+# Find all running session-filenames 
+
+session_find_all()
+{
+	for i in $NX_SESS_DIR/running/*
+	do
+		[ -f $i ] || break
+		echo $i
+	done
+}
+
+# Find all running sessions of a id
+session_find_id()
+{
+	[ -f $NX_SESS_DIR/running/sessionId"{$1}" ] && echo $NX_SESS_DIR/running/sessionId"{$1}"
+}
+
+# finds out if a session belongs to a user
+
+session_find_id_user()
+{
+	[ -f $NX_SESS_DIR/running/sessionId"{$1}" ] && egrep -q "^userName=$2$" $NX_SESS_DIR/running/sessionId"{$1}" && return 0
+	return 1
+}
+
+# Find all running sessions of a user
+session_find_user()
+{
+	for i in $NX_SESS_DIR/running/*
+	do
+		[ -f $i ] || break
+		egrep -q "^userName=$1$" $i && echo $i
+	done
+}
+
+# Find all running sessions of a display
+session_find_display()
+{	
+	for i in $NX_SESS_DIR/running/*
+	do
+		[ -f $i ] || break
+		egrep -q "^display=$1$" $i && echo $i
+	done
+}
+
+# session_get_cmdline <session filename>
+
+session_get_cmdline()
+{
+	echo "a=b" | cat - $1 | tr '\n' '&'
+}
+
+# session_get <uniqueid>
+
+session_get()
+{
+	session_get_cmdline $NX_SESS_DIR/running/sessionId"{$1}"
+}
+
+
+# Get the first session, which can be resumed
+
+session_get_user_suspended()
+{
+	for i in $NX_SESS_DIR/running/*
+	do
+		[ -f $i ] || break
+		if egrep -q "^userName=$1$" $i && egrep -q "^status=$2$" $i
+		then
+			CMDLINE=$(session_get_cmdline $i)
+			echo "$(getparam sessionId)"
+			break
+		fi
+	done
+}
+
+# Count all sessions of a user
+# and save it in SESSION_COUNT and SESSION_COUNT_USER
+
+session_count_user()
+{
+	SESSION_COUNT=0
+	SESSION_COUNT_USER=0
+
+	for i in $NX_SESS_DIR/running/*
+	do
+		[ -f $i ] || break
+		let SESSION_COUNT=$SESSION_COUNT+1
+		egrep -q "^userName=$1$" $i && let SESSION_COUNT_USER=$SESSION_COUNT_USER+1
+	done
+}
+
+# List all sessions of a user
+
+session_list_user_suspended()
+{
+	SESSION_COUNT=0
+	SESSION_COUNT_USER=0
+
+	TMPFILE=$(mktemp /tmp/nxserver_tmp.XXXXXXXXX)
+	echo "NX> 127 Sessions list of user '$1' for reconnect:" > $TMPFILE
+	echo >> $TMPFILE
+	if [ -z "$4" ]
+	then
+		
+		echo "Display Type             Session ID                       Options  Depth Screensize     Available Session Name" >> $TMPFILE
+		echo "------- ---------------- -------------------------------- -------- ----- -------------- --------- ----------------------" >> $TMPFILE
+	else
+		echo "Display Type             Session ID                       Options  Depth Screen         Status      Session Name" >> $TMPFILE
+		echo "------- ---------------- -------------------------------- -------- ----- -------------- ----------- ------------------------------" >> $TMPFILE
+	fi
+	for i in $NX_SESS_DIR/running/*
+	do
+		[ -f $i ] || break
+		let SESSION_COUNT=$SESSION_COUNT+1
+		if egrep -q "^userName=$1$" $i && egrep -q "^status=$2$" $i #&& grep -q "screeninfo=$3" $i
+		then
+			CMDLINE=$(session_get_cmdline $i)
+			depth=$(getparam screeninfo | cut -d "x" -f3 | cut -d "+" -f1 )
+			geom=$(getparam screeninfo | cut -d "x" -f1,2) 
+			render=$(getparam screeninfo | cut -d "+" -f2 )
+			available="N/A"
+			udepth=$(echo $3 | cut -d "x" -f3 | cut -d "+" -f1 )
+			urender=$(echo $3 | cut -d "+" -f2 )
+			options="-"
+			stringinstring "fullscreen" "$3" && options="F"
+			[ "$(getparam geometry)" = "fullscreen" ] || options="-"
+			[ "$urender" = "render" ] && options="${options}R---PSA"
+			[ "$urender" = "render" ] || options="${options}----PSA"
+			[ "$udepth" = "$depth" -a "$urender" = "$render" ] && available=$(getparam status)
+			# FIXME: HACK !!! to keep compatibility with old snapshot version (Knoppix 3.6 based for example)
+			if [ -z "$4" -a "$available" != "N/A" ] 
+			then
+				available="Yes"
+			fi
+			printf "%-7s %-16s %32s %8s %5s %-14s %-11s %s\n" "$(getparam display)" "$(getparam type)" "$(getparam sessionId)" "$options" "$depth" "$geom" "$available" "$(getparam sessionName)" >> $TMPFILE
+		fi
+		egrep -q "^userName=$1$" $i && let SESSION_COUNT_USER=$SESSION_COUNT_USER+1
+	done
+	echo "" >> $TMPFILE
+	echo "" >> $TMPFILE
+	cat $TMPFILE
+	rm -f $TMPFILE
+	if [ "$SESSION_COUNT" -ge "$SESSION_LIMIT" -o "$SESSION_COUNT_USER" -ge "$SESSION_USER_LIMIT" ]
+	then
+		echo "NX> 147 Server capacity: reached for user: $1"
+	else
+		echo "NX> 148 Server capacity: not reached for user: $1"
+	fi
+}
+
+session_list_user()
+{
+	echo "NX> 127 Sessions list of user '$1'"
+	echo
+	echo "Display Username        Remote IP       Session ID"
+	echo "------- --------------- --------------- --------------------------------"
+	for i in $NX_SESS_DIR/running/*
+	do
+		[ -f $i ] || break
+		if egrep -q "^userName=$1$" $i
+		then
+			CMDLINE=$(session_get_cmdline $i)
+			echo -e "$(getparam display)\t$(getparam userName)\t$(getparam foreignAddress)\t$(getparam sessionId)"
+		fi
+	done
+}
+
+session_history()
+{
+	userName=$1
+	sessionId=$2
+	echo "NX> 127 Session list:"
+	echo
+	echo "Display Username        Remote IP       Session ID                       Date                Status"
+	echo "------- --------------- --------------- -------------------------------- ------------------- -----------"
+	for j in $(ls --time-style +%s -la "$NX_SESS_DIR"/{closed,failed,running} | awk '/sessionId/ { print $6 " " $7 }' | sort -n | cut -d" " -f2)
+	do
+		if [ -n "$sessionId" ]
+		then
+			[ "$j" = "sessionId{$sessionId}" ] || continue
+		fi
+		i="$NX_SESS_DIR"/*/"$j"
+		[ -f $i ] || break
+		CMDLINE=$(session_get_cmdline $i)
+		if [ -n "$userName" ]
+		then
+			[ "$userName" = "$(getparam userName)" ] || continue
+		fi
+		echo -e "$(getparam display)\t$(getparam userName)\t$(getparam foreignAddress)\t$(getparam sessionId)\t$(ls --time-style="+%F %X" -l $i | awk '/sessionId/ { print $6 " " $7 }')\t$(getparam status)"
+	done
+}
+
+# remove all sessions older than $SESSION_HISTORY seconds in failed/closed.
+
+session_cleanup()
+{
+	[ "$SESSION_HISTORY" -gt "-1" ] || return
+	let SESSION_HISTORY_MINUTES=$SESSION_HISTORY/60
+	find $NX_SESS_DIR/closed/ $NX_SESS_DIR/failed/ -type f -mmin +"$SESSION_HISTORY_MINUTES" -exec rm -f '{}' ';'
+}
+
+session_list_all()
+{
+	echo "NX> 127 Sessions list:"
+	echo
+	echo "Display Username        Remote IP       Session ID"
+	echo "------- --------------- --------------- --------------------------------"
+	for i in $NX_SESS_DIR/running/*
+	do
+		[ -f $i ] || break
+		CMDLINE=$(session_get_cmdline $i)
+		echo -e "$(getparam display)\t$(getparam userName)\t$(getparam foreignAddress)\t$(getparam sessionId)"
+	done
+}
+
+
+# session_add <session_id> <options>
+
+session_add()
+{
+	id=$1
+	shift
+	echo "$@" | tr '&' '\n' > $NX_SESS_DIR/running/sessionId'{'$id'}'
+}
+
+# session_change <session_id> <parameter> <new_value>
+
+session_change()
+{
+	[ -f $NX_SESS_DIR/running/sessionId'{'$1'}' ] && perl -pi -e "s/$2=.*/$2=$3/" $NX_SESS_DIR/running/sessionId'{'$1'}'
+}
+
+# session_id <new status>
+
+session_status()
+{
+	session_change "$1" "status" "$2"
+}
+
+# session_close <session_id> <end-time>
+
+session_close()
+{
+	perl -pi -e "s/startTime=\(.*\)/startTime=\1\nendTime=$(date +%s)/" $NX_SESS_DIR/running/sessionId'{'$1'}'
+	session_status $1 "Finished"
+	[ "$SESSION_HISTORY" = "0" ] && rm -f $NX_SESS_DIR/running/sessionId'{'$1'}'
+	[ "$SESSION_HISTORY" = "0" ] || mv -f $NX_SESS_DIR/running/sessionId'{'$1'}' $NX_SESS_DIR/closed/sessionId'{'$1'}'
+}
+
+session_fail()
+{
+	perl -pi -e "s/startTime=\(.*\)/startTime=\1\nendTime=$(date +%s)/" $NX_SESS_DIR/running/sessionId'{'$1'}'
+	session_status $1 "Failed"
+	[ "$SESSION_HISTORY" = "0" ] && rm -f $NX_SESS_DIR/running/sessionId'{'$1'}'
+	[ "$SESSION_HISTORY" = "0" ] || mv -f $NX_SESS_DIR/running/sessionId'{'$1'}' $NX_SESS_DIR/failed/sessionId'{'$1'}'
+}
+
+session_suspend()
+{
+	session_status $1 "Suspended"
+	session_change $1 foreignAddress "-"
+}
+
+#
+# end of library
+#
+
+
+#
+# Main nxserver <-> nxclient communication module
+#
+
+if [ $USER = "nxfree" -o "$USER" = "nx" -o "$ENABLE_USERMODE_AUTHENTICATION" = "1" ]
+then
+
+setup_usermode_auth()
+{
+
+	[ $USER = "nxfree" -o "$USER" = "nx" ] && ENABLE_USERMODE_AUTHENTICATION="0"
+
+	if [ "$ENABLE_USERMODE_AUTHENTICATION" = "1" ]
+	then
+		export NX_SESS_DIR="$USER_FAKE_HOME/.nx/db/"
+		export NX_LOGFILE="$USER_FAKE_HOME/.nx/temp/nxserver.log"
+		mkdir -p $NX_SESS_DIR/{closed,running,failed}
+	fi
+}
+
+setup_usermode_auth
+
+# Loglevels:
+# 1: Errors
+# 2: Warnings
+# 3: Important information
+# 4: Server - Client communication
+# 5: Information
+# 6: Debugging information
+# 7: stderror-channel of some applications
+
+log()
+{
+	[ "$NX_LOG_LEVEL" -ge "$1" -a -w "$NX_LOGFILE" ] && shift && echo "$@" >> "$NX_LOGFILE"
+}
+
+# Log in a way that is secure for passwords / cookies / ...
+
+echo_secure()
+{
+	echo "$@ " | perl -pi -e 's/--cookie=".+?"/--cookie="******"/g; s/--agent_password=".+?"/agent_password="******"/g; s/--password=".+?"/password="******"/g; s/cookie=.+?&/cookie=******&/g; s/agent_password=.+?&/agent_password=******&/g; s/password=.+?&/password=******&/g;'
+}
+
+log_secure()
+{
+	if [ "$NX_LOG_SECURE" = "0" ]
+	then
+		log "$@"
+	else
+		[ "$NX_LOG_LEVEL" -ge "$1" -a -w "$NX_LOGFILE" ] && shift && echo_secure "$@" >> "$NX_LOGFILE"
+	fi
+}
+
+log_tee()
+{
+	[ "$NX_LOG_LEVEL" -ge "4" -a -w "$NX_LOGFILE" ] && exec tee -a "$NX_LOGFILE"
+	[ "$NX_LOG_LEVEL" -ge "4" -a -w "$NX_LOGFILE" ] || exec cat -
+}
+
+log_error()
+{
+	[ "$NX_LOG_LEVEL" -ge "7" -a -w "$NX_LOGFILE" ] && exec tee -a "$NX_LOGFILE"
+	[ "$NX_LOG_LEVEL" -ge "7" -a -w "$NX_LOGFILE" ] || exec cat - 
+}
+
+echo_x()
+{
+	log "4" "$@"
+	echo "$@"
+}
+
+# Start!
+[ "$NX_LOG_LEVEL" -ge "1" ] && touch "$NX_LOGFILE" >/dev/null 2>&1
+log 3 "-- NX SERVER START: $@"
+
+if [ "$ENABLE_SERVER_FORWARD" = "1" -a -n "$SERVER_FORWARD_HOST" ]
+then
+	log 3 "Info: Forwarding connection to $SERVER_FORWARD_HOST with secret key $SERVER_FORWARD_KEY."
+	$COMMAND_SSH -i "$SERVER_FORWARD_KEY" "nx@$SERVER_FORWARD_HOST:$SERVER_FORWARD_PORT"
+	exit 0
+fi
+
+# forward the connection to commercial NoMachine server?
+if [ "$ENABLE_NOMACHINE_FORWARD_PORT" = "1" -a "$NOMACHINE_FORWARD_PORT" = "$(echo $SSH_CLIENT $SSH2_CLIENT| cut -d' ' -f3)" -a -n "$NOMACHINE_SERVER" ]
+then
+	log 3 "Info: Detected SSH destination port $NOMACHINE_FORWARD_PORT. Forwarding connection to commercial NoMachine server."
+	exec $NOMACHINE_SERVER
+	log 1 "Error: Forwarding to NoMachine Server $NOMACHINE_SERVER failed. Using FreeNX server instead."
+fi
+
+echo_x "HELLO NXSERVER - Version $NX_VERSION $NX_LICENSE"
+
+# Login stage
+while true
+do
+	echo_x -n "NX> 105 "
+	read CMD
+	# FIXME?
+	[ "$CMD" = "" ] && CMD="quit"
+	echo_x "$CMD"
+	
+	case "$CMD" in 
+		quit|QUIT)
+			echo_x "Quit"
+			echo_x "NX> 999 Bye"
+			exit 0
+		;;
+		exit|EXIT)
+			echo_x "Exit"
+			echo_x "NX> 999 Bye"
+			exit 0
+		;;
+		bye|BYE)
+			echo_x "Bye"
+			echo_x "NX> 999 Bye"
+			exit 0
+		;;
+		hello*|HELLO*)
+			PROTO=$(echo $CMD | sed 's/.*Version \(.*\)/\1/g')
+			echo_x "NX> 134 Accepted protocol: $PROTO"
+			if [ "$PROTO" = "1.3.0" -o "$PROTO" = "1.3.2" ]
+			then
+				[ "$ENABLE_AUTORECONNECT_BEFORE_140" = "1" ] && ENABLE_AUTORECONNECT="1"
+			fi
+		;;
+		"set auth_mode*"|"SET AUTH_MODE*")
+			if [ "$CMD" = "set auth_mode password" -o "$CMD" = "SET AUTH_MODE PASSWORD" ]
+			then
+				echo_x "Set auth_mode: password"
+			else
+				echo_x "NX> 500 ERROR: unknown auth mode ''"
+			fi
+		;;
+		login|LOGIN)
+			LOGIN_SUCCESS="0"
+			
+			echo_x -n "NX> 101 User: "
+			read USER
+			echo_x $USER
+			
+			echo_x -n "NX> 102 Password: "
+			read -s PASS
+			echo_x ""
+			log 6 -n "Info: Auth method: "
+			
+			# USER already logged in?
+			if [ "$ENABLE_USERMODE_AUTHENTICATION" = "1" ]
+			then
+				LOGIN_SUCCESS="1"
+				LOGIN_METHOD="USERMODE"
+				USER=$(whoami)
+			fi
+
+			# PASSDB based auth
+			if [ "$ENABLE_PASSDB_AUTHENTICATION" = "1" -a "$LOGIN_SUCCESS" = "0" ]
+			then
+				log 6 -n "passdb "
+				if [ $(passdb_get_crypt_pass "$PASS") = $(passdb_get_pass "$USER") ]
+				then
+					LOGIN_SUCCESS="1"
+					LOGIN_METHOD="PASSDB"
+				fi
+			fi
+
+			# SSH based auth
+			if [ "$ENABLE_SSH_AUTHENTICATION" = "1" -a "$LOGIN_SUCCESS" = "0" ]
+			then
+				log 6 -n "ssh "
+				export COMMAND_SSH			
+				echo "$PASS" | $PATH_BIN/nxnode-login -- ssh "$USER" "$SSHD_PORT" "$PATH_BIN/nxnode" --check 2>&1 >/dev/null
+				if [ $? -eq 0 ]
+				then
+					LOGIN_SUCCESS="1"
+					LOGIN_METHOD="SSH"
+				fi
+			fi
+			
+			# SU based auth
+			if [ "$ENABLE_SU_AUTHENTICATION" = "1" -a "$LOGIN_SUCCESS" = "0" ]
+			then
+				log 6 -n "su "
+				echo "$PASS" | $PATH_BIN/nxnode-login -- su "$USER" "" "$PATH_BIN/nxnode" --check 2>&1 >/dev/null
+				if [ $? -eq 0 ]
+				then
+					LOGIN_SUCCESS="1"
+					LOGIN_METHOD="SU"
+				fi
+			fi
+			
+			# Check if user in passdb
+			if [ "$ENABLE_USER_DB" = "1" ]
+			then
+				log 6 "userdb check"
+				passdb_user_exists "$USER" || LOGIN_SUCCESS="0"
+			fi
+			log 6 ""
+
+			if [ "$LOGIN_SUCCESS" = "1" ]
+			then
+				# Reread the config files (so that $USER.node.conf get sourced)
+				. $(PATH=$(cd $(dirname $0) && pwd):$PATH which nxloadconfig) --userconf
+				setup_usermode_auth
+
+				echo_x "NX> 103 Welcome to: $SERVER_NAME user: $USER"
+				break
+			else
+				echo_x "NX> 404 ERROR: wrong password or login"
+				echo_x "NX> 999 Bye"
+				exit 1
+			fi
+		;;
+	esac
+done
+
+# remove old session infos from history
+session_cleanup
+
+#
+# call it with: server_get_params $CMD # no ""!
+#
+
+server_get_params()
+{
+	SERVER_PARAMS=$(echo "$@" | sed "s/^$1/\"/g; s/\" --/\&/g; s/\"//g")
+	if [ "$SERVER_PARAMS" = "" ]
+	then
+		echo_x -n "NX> 106 Parameters: "
+		read SERVER_PARAMS2
+		SERVER_PARAMS=$(echo $SERVER_PARAMS2 | sed 's/%2B/+/g')
+		echo_x
+	fi
+}
+
+nxnode_start()
+{
+	:
+	#CMD="$1"
+	#shift
+	#echo "$@" | $PATH_BIN/nxnode "$CMD"
+}
+
+#NX> 1002 Commit
+#NX> 1006 Session status: running
+
+server_nxnode_start()
+{
+	CMD="$1"
+	USER="$2"
+	shift
+	shift
+	# Use nxnode-login?
+	if [ "$LOGIN_METHOD" = "SSH" ]
+	then
+	    export COMMAND_SSH
+	    echo "$PASS" | NXNODE_TOSEND="$@" $PATH_BIN/nxnode-login -- ssh "$USER" "$SSHD_PORT" "$PATH_BIN/nxnode" "$CMD" 2>&1 | log_tee
+	elif [ "$LOGIN_METHOD" = "SU" ]
+	then
+	    echo "$PASS" | NXNODE_TOSEND="$@" $PATH_BIN/nxnode-login -- su "$USER" "" "$PATH_BIN/nxnode" "$CMD" 2>&1 | log_tee
+	elif [ "$LOGIN_METHOD" = "USERMODE" ]
+	then
+	    echo "$@" | $PATH_BIN/nxnode "$CMD" 2>&1 | log_tee
+	else
+	    echo "$@" | $COMMAND_SSH -l "$USER" 127.0.0.1 -p $SSHD_PORT -x -2 -i $NX_ETC_DIR/users.id_dsa -o 'PubkeyAuthentication yes' -o 'RSAAuthentication yes' -o 'RhostsAuthentication no' -o 'PasswordAuthentication no' -o 'RhostsRSAAuthentication no' -o 'StrictHostKeyChecking no' $PATH_BIN/nxnode "$CMD" | log_tee
+	fi
+}
+
+server_add_usession()
+{
+	[ "$ENABLE_USESSION" = "1" ] || return
+	
+	$COMMAND_SESSREG -l ":$SESS_DISPLAY" -h "$USERIP" -a $USER 2>&1 | log_error
+}
+
+server_remove_usession()
+{
+	[ "$ENABLE_USESSION" = "1" ] || return
+	$COMMAND_SESSREG -l ":$SESS_DISPLAY" -h "$USERIP" -d $USER 2>&1 | log_error
+}
+
+server_nxnode_echo()
+{
+	[ "$SERVER_CHANNEL" = "1" ] && echo "$@"
+	[ "$SERVER_CHANNEL" = "2" ] && echo "$@" >&2
+}
+
+server_nxnode_exit_func()
+{
+	log 1 "Info: Emergency-Shutting down due to kill signal ..."
+	
+	session_fail $uniqueid
+	
+	server_remove_usession
+
+	# remove lock file
+	[ -e "/tmp/.nX$SESS_DISPLAY-lock" ] && rm -f /tmp/.nX$SESS_DISPLAY-lock
+}
+
+server_nxnode_start_wait()
+{
+	server_add_usession
+
+	# Trap did fire unnecessarily according to Sunil, so removed it again.
+	#trap server_nxnode_exit_func EXIT
+	
+	SERVER_CHANNEL=1
+	KILL_WAIT_PID=1
+	server_nxnode_start "$@" | while read CMD
+	do
+		case "$CMD" in 
+			"NX> 1006"*|"NX> 1005"*|"NX> 1009"*)
+				case "$CMD" in 
+					*running*)
+						[ "$KILL_WAIT_PID" = "1" ] && kill $SERVER_WAIT_PID
+						KILL_WAIT_PID=0
+						session_status $uniqueid "Running"
+						SERVER_CHANNEL=2
+					;;
+					*closed*)
+						session_close $uniqueid
+					;;
+					*suspended*)
+						[ "$KILL_WAIT_PID" = "1" ] && kill $SERVER_WAIT_PID
+						KILL_WAIT_PID=0
+						session_suspend $uniqueid
+					;;
+					*terminating*)
+						session_status $uniqueid "Terminating"
+						# we need to stop sending to client as it will have already
+						# closed his side of the channel and this will lead to not 
+						# closed sessions.
+						SERVER_CHANNEL=0
+				esac
+			;;
+			"NX> 1004"*)
+				[ "$KILL_WAIT_PID" = "1" ] && kill $SERVER_WAIT_PID
+				KILL_WAIT_PID=0
+				session_fail $uniqueid
+				# FIXME: Need correct error code.
+				server_nxnode_echo "NX> 504 Session startup failed."
+				log 4 "NX> 504 Session startup failed."
+			;;
+		esac
+
+		case $CMD in
+			"NX> "*)
+				server_nxnode_echo $CMD
+			;;
+		esac
+	done
+
+	trap "" EXIT
+	
+	server_remove_usession
+
+	# remove lock file
+	[ -e "/tmp/.nX$SESS_DISPLAY-lock" ] && rm -f /tmp/.nX$SESS_DISPLAY-lock
+}
+
+server_check_session_count()
+{
+	session_count_user "$USER"
+	
+	if [ "$SESSION_COUNT" -ge "$SESSION_LIMIT" ]
+	then
+		echo_x "NX> 599 Reached the maximum number of concurrent sessions on this server."
+		echo_x "NX> 500 ERROR: Last operation failed."
+		return 1
+	fi
+	
+	if [ "$SESSION_COUNT_USER" -ge "$SESSION_USER_LIMIT" ]
+	then
+		echo_x "NX> 599 Server capacity: reached for user: $USER"
+		echo_x "NX> 500 ERROR: Last operation failed."
+		return 1
+	fi
+
+	return 0
+}
+
+server_startrestore_session()
+{
+	ACTION="$1"
+	
+	server_get_params $CMD
+	PARAMS=$SERVER_PARAMS
+	PARAMS="$PARAMS&clientproto=$PROTO"
+	CMDLINE=$PARAMS
+	echo_x
+	
+	# If we can't get the userip and SSHD_CHECK_IP is set to 1
+	# we bail out.
+	if [ -z "$SSH_CLIENT" -a -z "$SSH2_CLIENT" ]
+	then 
+		if [ "$SSHD_CHECK_IP" = "1" ]
+		then
+			echo_x "NX> 504 Session startup failed. (Missing SSH_CLIENT environment variable)"
+			return 1
+		else
+			log 2 "Warning: Failed to determine the client IP."
+			log 2 "Warning: The SSH_CLIENT or SSH2_CLIENT variable was not provided by SSHD."
+			log 2 "Warning: Please set SSHD_CHECK_IP=1 if you want to refuse the connection."
+		fi
+	fi
+	
+	export ENCRYPTION=$(getparam encryption)
+	
+	if [ "$ENABLE_FORCE_ENCRYPTION" = "1" -a "$ENCRYPTION" != "1" ]
+	then
+			echo_x "NX> 504 Unencrypted sessions are not allowed."
+			return 1
+	fi
+
+	# check if there is a suspended session, which we could resume
+	if [ "$ENABLE_AUTORECONNECT" = "1" -a "$ACTION" = "start" ]
+	then
+		restore=$(session_get_user_suspended "$USER" "Suspended")
+		if [ -n "$restore" ]
+		then
+			PARAMS="$PARAMS&restore=$restore"
+			CMDLINE=$PARAMS
+			ACTION="resume"
+		fi
+	fi
+
+	# as only $SSH_CLIENT or $SSH2_CLIENT will be set, this should work
+	USERIP=$(echo $SSH_CLIENT $SSH2_CLIENT | cut -d" " -f1 | sed 's/::ffff://g')
+	[ -z "$USERIP" ] && USERIP="*"
+	if [ "$ACTION" = "start" ]
+	then
+		server_check_session_count || return 1
+		
+		# start nxnode
+		SESS_DISPLAY=$DISPLAY_BASE
+		let SESS_DISPLAY_LIMIT=$DISPLAY_BASE+$DISPLAY_LIMIT
+	
+		# stupid but working algo ...
+			
+		# TODO: need to check for _all_ offset and ports :-/
+			
+		while true
+		do
+			while [ -e /tmp/.X$SESS_DISPLAY-lock -o -e "/tmp/.nX$SESS_DISPLAY-lock" ]
+			do
+				let SESS_DISPLAY=$SESS_DISPLAY+1
+			done
+
+			# Check if there is already an agent running on that display
+			let AGENT_DISPLAY=$SESS_DISPLAY+6000
+			if $COMMAND_NETCAT -z 127.0.0.1 $AGENT_DISPLAY 2>/dev/null
+			then
+				log 2 "Warning: Stray nxagent without .X$SESS_DISPLAY-lock found on port $AGENT_DISPLAY."
+				let SESS_DISPLAY=$SESS_DISPLAY+1
+				continue
+			fi
+			
+
+			SESS_LOCKFILE=$(mktemp "/tmp/.nX$SESS_DISPLAY-lock.XXXXXXXXX")
+			# ln is an atomic operation
+			ln "$SESS_LOCKFILE" "/tmp/.nX$SESS_DISPLAY-lock" 2>/dev/null && break
+		done
+
+		rm -f "$SESS_LOCKFILE"
+		
+		if [ "$SESS_DISPLAY" -gt "$SESS_DISPLAY_LIMIT" ]
+		then
+			# fixme we need the correct error code
+			echo_x "NX> 504 Error: Display limit exceeded. Please remove some files from /tmp/.X*-lock."
+			rm -f "/tmp/.nX$SESS_DISPLAY-lock"
+			return
+		fi
+	
+		uniqueid=$(echo $[$RANDOM*$RANDOM] | $COMMAND_MD5SUM | cut -d" " -f1 | tr "[a-z]" "[A-Z]")
+		FULL_PARAMS="$PARAMS&user=$USER&userip=$USERIP&uniqueid=$uniqueid&display=$SESS_DISPLAY"
+		log_secure "6" "$FULL_PARAMS"
+
+		# now update the session listing
+		CMDLINE="a=b&$FULL_PARAMS"
+		session_add $uniqueid "sessionName=$(getparam session)&display=$(getparam display)&status=Running&startTime=$(date +%s)&foreignAddress=$(getparam userip)&type=$(getparam type)&sessionId=$uniqueid&creationTime=$(date +%s)&userName=$USER&serverPid=$SERVER_PID&screeninfo=$(getparam screeninfo)&geometry=$(getparam geometry)"
+	else
+		uniqueid=$(getparam restore)
+		[ -z "$uniqueid" ] && uniqueid=$(getparam id) # 1.4.0-5 compatibility
+		session_change "$uniqueid" "foreignAddress" "$USERIP"
+
+		CMDLINE=$(session_get "$uniqueid")
+		FULL_PARAMS="$PARAMS&user=$USER&userip=$(getparam foreignAddress)&uniqueid=$uniqueid&display=$(getparam display)"
+		SESS_DISPLAY=$(getparam display)
+	fi
+
+	# now start the node
+	(sleep $AGENT_STARTUP_TIMEOUT; exit 1) &
+	SERVER_WAIT_PID=$!
+	server_nxnode_start_wait --"$ACTION"session $USER "$FULL_PARAMS" &
+	SERVER_PID=$!
+	disown $SERVER_PID
+	wait $SERVER_WAIT_PID
+	
+	if [ $? -eq 1 ]
+	then
+		# Something went wrong ...
+		[ "$ACTION" = "start" ] && session_fail $uniqueid
+		# FIXME: Need correct error code.
+		echo_x "NX> 1004 Error: Session did not start."
+		echo_x "NX> 504 Session startup failed."
+		echo_x "NX> 999 Bye"
+		# FIXME: Send node signal to terminate
+		exit 1
+	fi
+}
+
+# Session stage
+while true
+do
+	echo_x -n "NX> 105 "
+	unset CMD
+	read CMD 2>/dev/null
+	# FIXME?
+	[ "$CMD" = "" ] && CMD="quit"
+	
+	# Logging 
+	case "$CMD" in
+		startsession*|restoresession*|addmount*|addprinter*)
+			echo_secure "$CMD"
+			log_secure "4" "$CMD"
+		;;
+		*)
+			echo "$CMD"
+			log "4" "$CMD"
+		;;
+	esac
+	
+	case "$CMD" in 
+		quit|QUIT)
+			echo_x "Quit"
+			echo_x "NX> 999 Bye"
+			exit 0
+		;;
+		exit|EXIT)
+			echo_x "Exit"
+			echo_x "NX> 999 Bye"
+			exit 0
+		;;
+		bye|BYE)
+			echo_x "Bye" 1>&2
+			echo_x "NX> 999 Bye" 1>&2
+			if [ "$ENCRYPTION" = "1" ] 
+			then 
+				let PROXY_DISPLAY=$SESS_DISPLAY+4000
+				$COMMAND_NETCAT 127.0.0.1 $PROXY_DISPLAY
+				exit 0
+			else
+				echo_x "NX> 1001 Bye."
+			fi
+		;;
+		startsession*)
+			server_startrestore_session "start"
+		;;
+		list*)
+			server_get_params $CMD
+			PARAMS=$SERVER_PARAMS
+			CMDLINE=$PARAMS
+			
+			status=$(getparam status)
+
+			if [ "$status" = "Suspended" -a -n "$(getparam screeninfo)" ]
+			then
+				session_list_user_suspended "$USER" "Suspended" "$(getparam screeninfo)" "$(getparam type)" | log_tee
+			elif [ "$status" = "Suspended,Running" -o "$status" = "Suspended" ] # since 1.4.0-5
+			then
+				# disabled due to problems with 1.4.0-5 client
+				#session_list_user_suspended "$USER" 'Suspended$|^status=Running$' "$(getparam geometry)" "$(getparam type)" | log_tee
+				session_list_user_suspended "$USER" 'Suspended' "$(getparam geometry)" "$(getparam type)" | log_tee
+			elif [ "$status" = "suspended,running" -o "$status" = "suspended" ] # since 1.5.0
+			then
+				session_list_user_suspended "$USER" 'Suspended' "$(getparam geometry)" "$(getparam type)" | log_tee
+			else
+				session_list_user "$USER" | log_tee
+			fi
+		;;
+		suspend*)
+			server_get_params $CMD
+			PARAMS=$SERVER_PARAMS
+			CMDLINE=$PARAMS
+			if session_find_id_user "$(getparam sessionid)" "$USER"
+			then
+				# FIXME: Check for success/error
+				server_nxnode_start --suspend "$USER" "$PARAMS"
+				session_suspend $(getparam sessionid)
+			fi
+		;;
+		terminate*)
+			server_get_params $CMD
+			PARAMS=$SERVER_PARAMS
+			CMDLINE=$PARAMS
+			if session_find_id_user "$(getparam sessionid)" "$USER"
+			then
+				# FIXME: Check for success/error
+				server_nxnode_start --terminate "$USER" "$PARAMS"
+				session_close $(getparam sessionid)
+			fi
+		;;
+		restoresession*)
+			server_startrestore_session "resume"
+		;;
+		passwd)
+			echo_x "NX> 113 Changing password of user '$USER'"
+			echo_x -n "NX> 102 Current password:"
+			read -s PASS
+			ENC_PASS=$(passdb_get_crypt_pass "$PASS")
+			REAL_PASS=$(passdb_get_pass "$USER")
+			echo_x
+			if [ "$ENC_PASS" = "$REAL_PASS" ]
+			then
+				echo_x -n "NX> 102 Password:"
+				read -s NEW_PASS1
+				
+				if [ ${#NEW_PASS1} -lt 5 ]
+				then
+					echo_x "NX> 500 ERROR: incorrect password format, password must be long at least five characters"
+					continue
+				fi
+
+				echo_x
+				echo_x -n "NX> 102 Confirm password:"
+				read -s NEW_PASS1
+				echo_x
+				if [ "$NEW_PASS1" = "$NEW_PASS2" ]
+				then
+					ENC_PASS=$(passdb_get_crypt_pass "$NEW_PASS1")
+					passdb_chpass "$USER" "$ENC_PASS"
+					echo_x "NX> 114 Password of user '$USER' changed"
+				else
+					echo_x "NX> 537 ERROR: passwords do not match"
+				fi
+			else
+				echo_x "NX> 500 ERROR: current password doesn't match"
+			fi
+		;;
+		addmount*)
+			server_get_params $CMD
+			PARAMS=$SERVER_PARAMS
+			server_nxnode_start --smbmount "$USER" "$PARAMS" >/dev/null 2>&1 | log_error >/dev/null
+			echo_x "NX> 719 SMB filesystem: running"
+		;;
+		addprinter*)
+			server_get_params $CMD
+			PARAMS=$SERVER_PARAMS
+			server_nxnode_start --addprinter "$USER" "$PARAMS" >/dev/null 2>&1 | log_error >/dev/null
+		;;
+		*)
+			# disabled for 1.4.0-5 snapshot client
+			#echo_x "NX> 503 Error: undefined command: '$CMD'"
+		;;
+	esac
+done
+
+fi
+
+#
+# End of Main nxserver <--> nxclient communication module
+#
+
+################### PACKAGE cmd.bm ############################
+
+#
+# library functions for nxserver-commandline cmds
+#
+
+# Policy: All functions and variables need to start with CMD_ / cmd_
+
+# Needed global vars: $NX_VERSION, $NX_LICENSE, $NX_ETC_DIR, $PATH_BIN, $NX_HOME_DIR, $SSH_AUTHORIZED_KEYS
+
+# Needed package: passdb
+
+cmd_usage()
+{
+	echo "NXSERVER - Version $NX_VERSION $NX_LICENSE"
+	echo "Usage: nxserver <option>" 1>&2
+
+	if [ "$1" = "root" ]
+	then
+		echo "--adduser <user>: Add a new user" 1>&2
+		echo "--passwd <user>: Change password of <user>" 1>&2
+		echo "--deluser <user>: Remove a user from nx" 1>&2
+		echo "--listuser: List enabled users" 1>&2
+		echo "" 1>&2
+		echo "--start: Start the nx server" 1>&2
+		echo "--stop: Stop the nx server" 1>&2
+		echo "--status: Show status of nx server" 1>&2
+		echo "--restart: Restart the nx server and terminate all running sessions" 1>&2
+		echo "" 1>&2
+		echo "--list [ user | sessionid ]: List running sessions of user or sessionid " 1>&2
+		echo "--history [ user | sessionid | clear ]: Show history [ of user | sessionid ] or clear the history" 1>&2
+		echo "--terminate <user | :display | sessionid>: Terminate the session pointed to by" 1>&2
+		echo "       sessionid or display, or all sessions of the specified user." 1>&2
+		echo "       Use * for all sessions." 1>&2
+		echo "--suspend <user | :display | sessionid>: Suspend the session pointed to by" 1>&2
+		echo "       sessionid or display, or all sessions of the specified user." 1>&2
+		echo "       Use * for all sessions." 1>&2
+		echo "--cleanup: Terminates all running sessions. Useful after power-outage."
+		echo "" 1>&2
+		echo "--broadcast <message>: Send a message to all users" 1>&2
+		echo "--send <user | :display | sessionid> <message>: Send a message to the specified user or sessionid" 1>&2
+	else
+		echo "--passwd: Change password" 1>&2
+	fi
+	exit 1
+}
+
+
+cmd_abort()
+{
+	echo "NX> 500" "$@" 1>&2
+	echo "NX> 999 Bye" 1>&2
+	exit 1
+}
+
+cmd_user_passwd()
+{
+	echo "NX> 100 NXSERVER - Version $NX_VERSION $NX_LICENSE"
+	echo "Sorry: Password changing for user is _not_ implemented, yet."
+	echo "Please login to NX-Server to change password"
+	echo "or ask your local system administrator."
+	#echo "NX> 113 Changing password of user '$USER'"
+	#echo "Old password:"
+	#read -s OLDPASS
+	#echo "New password:"
+	#read -s NEWPASS1
+	#echo "Repeat:"
+	#read -s NEWPASS2
+
+}
+
+cmd_passwd()
+{
+	CMD_CHUSER=$2
+	egrep -q "^$CMD_CHUSER:" $NX_ETC_DIR/passwords || cmd_abort "Error: User $CMD_CHUSER not found in database."
+	echo -n "New password: "
+	read -s CMD_NEWPASS
+	echo
+	CMD_ENC_PASS=$(passdb_get_crypt_pass "$CMD_NEWPASS")
+	passdb_chpass "$CMD_CHUSER" "$CMD_ENC_PASS"
+	echo "Password changed."
+}
+
+cmd_adduser()
+{
+	CMD_CHUSER=$2
+	
+	[ ${#CMD_CHUSER} -ge 32 ] && cmd_abort "Error: User $CMD_CHUSER must be shorter than 32 characters."
+	egrep -q "^$CMD_CHUSER:" $NX_ETC_DIR/passwords && cmd_abort "Error: User $CMD_CHUSER already in database."
+	getent passwd "$CMD_CHUSER" >/dev/null || cmd_abort "Error: User $CMD_CHUSER not existing on local system. Can't add."
+	passdb_add_user "$CMD_CHUSER"
+}
+
+cmd_deluser()
+{
+	CMD_CHUSER=$2
+	egrep -q "^$CMD_CHUSER:" $NX_ETC_DIR/passwords || cmd_abort "Error: User $CMD_CHUSER not found in database."
+	passdb_remove_user "$CMD_CHUSER"
+}
+
+cmd_listuser()
+{
+	echo "NX> 146 NX users list"
+	echo
+	echo "Username"
+	echo "---------------"
+	echo
+	passdb_list_user
+	echo
+}
+
+cmd_start()
+{
+	
+	[ -f $NX_HOME_DIR/.ssh/$SSH_AUTHORIZED_KEYS ] && cmd_abort "ERROR: Service already running"
+	mv $NX_HOME_DIR/.ssh/$SSH_AUTHORIZED_KEYS.disabled $NX_HOME_DIR/.ssh/$SSH_AUTHORIZED_KEYS
+	echo "NX> 122 Service started"
+}
+
+cmd_stop()
+{
+	[ -f $NX_HOME_DIR/.ssh/$SSH_AUTHORIZED_KEYS ] || cmd_abort "Service was already stopped"
+	mv $NX_HOME_DIR/.ssh/$SSH_AUTHORIZED_KEYS $NX_HOME_DIR/.ssh/$SSH_AUTHORIZED_KEYS.disabled
+	# TODO: Stop all running sessions
+	echo "NX> 123 Service stopped"
+}
+
+cmd_status()
+{
+	[ -f $NX_HOME_DIR/.ssh/$SSH_AUTHORIZED_KEYS ] && echo "NX> 110 NX Server is running"
+	[ -f $NX_HOME_DIR/.ssh/$SSH_AUTHORIZED_KEYS ] || echo "NX> 110 NX Server is stopped"
+}
+
+cmd_restart()
+{
+	cmd_stop
+	cmd_start
+}
+
+cmd_parse_2_params()
+{
+	if [ ${#1} -eq 32 ]
+	then
+		CMD_APARAMS="sessionid=sessionId{$1}"
+	else
+	if [ "$1" != "" ]
+	then
+		#egrep -q "^$1:" $NX_ETC_DIR/passwords || cmd_abort "Error: User $1 not found in database."
+		CMD_APARAMS="user=$1"
+	fi
+	fi
+	echo $CMD_APARAMS
+
+}
+
+cmd_parse_3_params()
+{
+	if [ ${#1} -eq 32 ]
+	then
+		CMD_APARAMS=$(session_find_id $1)
+		[ -n "$CMD_APARAMS" ] || cmd_abort "Error: Session $1 could not be found."
+	elif [ "${1:0:1}" = ":" ]
+	then
+		CMD_APARAMS=$(session_find_display "${1:1}")
+		[ -n "$CMD_APARAMS" ] || cmd_abort "Error: No running sessions found for display $1."
+	elif [ "$1" = "*" ]
+	then
+		CMD_APARAMS=$(session_find_all)
+		[ -n "$CMD_APARAMS" ] || cmd_abort "Error: No running sessions found."
+	elif [ "$1" != "" ]
+	then
+		#egrep -q "^$1:" $NX_ETC_DIR/passwords || cmd_abort "Error: User $1 not found in database."
+		CMD_APARAMS=$(session_find_user "$1")
+		[ -n "$CMD_APARAMS" ] || cmd_abort "Error: No running sessions found for user $1."
+	else
+		cmd_abort "Error: Not enough parameters."
+	fi
+	echo $CMD_APARAMS
+}
+
+cmd_list_suspended()
+{
+	CMD_PARAMS=$(cmd_parse_2_params "$2")
+	[ -n "$2" -a -z "$CMD_PARAMS" ] && exit 1
+	case $CMD_PARAMS in
+		user=*)
+			session_list_user_suspended $2 "Suspended"
+		;;
+	esac
+}
+cmd_list()
+{
+	CMD_PARAMS=$(cmd_parse_2_params "$2")
+	[ -n "$2" -a -z "$CMD_PARAMS" ] && exit 1
+	case $CMD_PARAMS in
+		user=*)
+			session_list_user $2
+		;;
+		sessionid=*)
+			session_list $2
+		;;
+		*)
+			session_list_all
+		;;
+	esac
+}
+
+cmd_history_clear()
+{
+	rm -f $NX_SESS_DIR/closed/*
+	rm -f $NX_SESS_DIR/failed/*
+}
+
+cmd_history()
+{
+	if [ "$2" = "clear" ]
+	then
+		cmd_history_clear
+	fi
+	
+	CMD_PARAMS=$(cmd_parse_2_params "$2")
+	user=""
+	sessid=""
+	case $CMD_PARAMS in
+		user=*)
+			user="$2"
+		;;
+		sessionid=*)
+			sessid="$2"
+		;;
+	esac
+
+	session_history "$user" "$sessid"
+}
+
+cmd_terminate()
+{
+	CMD_PARAMS=$(cmd_parse_3_params "$2")
+	[ -z "$CMD_PARAMS" ] && exit 1
+	for i in $CMD_PARAMS;
+	do
+			CMDLINE=$(session_get_cmdline $i)
+			cmd_sessionid=$(getparam sessionId)
+			cmd_user=$(getparam userName)
+			cmd_type=$(getparam type)
+			cmd_status=$(getparam status)
+
+			# is it a "good" session?
+			case "$1" in 
+			--suspend)
+				if [ "$cmd_status" = "Running" ] && stringinstring "unix-" "$cmd_type"
+				then
+					echo "sessionid=$cmd_sessionid" | su - "$cmd_user" -c "$PATH_BIN/nxnode --suspend"
+					session_suspend $cmd_sessionid
+				fi
+				;;
+			--terminate)
+			#if stringinstring "unix-" "$cmd_type"
+			#	then
+					echo "sessionid=$cmd_sessionid" | su - "$cmd_user" -c "$PATH_BIN/nxnode --terminate"
+					session_close $cmd_sessionid
+			#	fi
+
+			;;
+			esac
+	done
+
+}
+
+cmd_send()
+{
+	if [ "$1" = "--broadcast" ]
+	then
+	  CMD_PARAMS=$(session_find_all)
+	  [ -z "$CMD_PARAMS" ] && cmd_abort "Error: No running session could be found."
+	else
+	  CMD_PARAMS=$(cmd_parse_3_params "$2")
+	  [ -z "$CMD_PARAMS" ] && exit 1
+	fi
+	shift
+	shift
+	for i in $CMD_PARAMS;
+	do
+			CMDLINE=$(session_get_cmdline $i)
+			cmd_display=$(getparam display)
+			cmd_user=$(getparam userName)
+			cmd_type=$(getparam type)
+			cmd_status=$(getparam status)
+
+			# is it a "good" session?
+			if [ "$cmd_status" = "Running" ] && stringinstring "unix-" "$cmd_type"
+			then
+				su - "$cmd_user" -c "$PATH_BIN/nxclient --dialog ok --caption \"NX Administrator Message\" --message \"$@\" --noautokill 
+-display \":$cmd_display\"" &
+				disown $!
+			fi
+	done
+	#nxnode_start --send "$CMD_PARAMS"
+}
+
+#
+# user mode available functions
+#
+
+if [ $UID -ne 0 ]
+then
+	[ "$1" = "--agent" ] && exec $PATH_BIN/nxnode "$@"
+	[ "$1" != "--passwd" ] && cmd_usage
+	cmd_user_passwd
+	exit 0
+fi
+
+#
+# root mode available functions
+#
+
+[ $# -lt 1 ] && cmd_usage "root"
+[ "$1" = "--help" ] && cmd_usage "root"
+
+if [ "$1" = "--version" ]
+then
+  echo "NXSERVER - Version $NX_VERSION $NX_LICENSE"
+  exit 0
+fi
+
+CMD=$1
+
+echo "NX> 100 NXSERVER - Version $NX_VERSION $NX_LICENSE"
+
+case $CMD in
+	# 
+	# User functions ...
+	# 
+	--passwd)
+		cmd_passwd "$@"
+	;;
+	--adduser|--useradd)
+		cmd_adduser "$@"
+	;;
+	--deluser|--userdel)
+		cmd_deluser "$@"
+	;;
+	--listuser|--userlist)
+		cmd_listuser
+	;;
+	--start)
+		cmd_start
+	;;
+	--stop)
+		cmd_stop
+	;;
+	--status)
+		cmd_status
+	;;
+	--restart)
+		cmd_restart
+	;;
+	--list)
+		cmd_list "$@"
+	;;
+	--list-suspended)
+		cmd_list_suspended "$@"
+	;;
+	--history)
+		cmd_history "$@"
+	;;
+	--terminate|--suspend)
+		cmd_terminate "$@"
+	;;
+	--cleanup)
+		cmd_terminate "--terminate" "*"
+	;;
+	--send|--broadcast)
+		cmd_send "$@"
+	;;
+	*)
+		cmd_abort "Error: Function $CMD not implemented yet."
+esac
+echo "NX> 999 Bye"

@@ -1,0 +1,22 @@
+#!/bin/bash
+#
+# nxserver-login-userhook - Example script to check if user is allowed to login and do the login.
+#
+# Copyright (c) 2007 by Fabian Franz <FreeNX@fabian-franz.de>
+#
+# License: GPL, version 2
+#
+# Syntax: nxserver-login-userhook auth-method user executable parameters
+#
+
+# FIXME: load config here
+PATH_BIN=$(cd $(dirname $0) && pwd)
+
+if [ "$2" = "ff" ]
+then
+	exit 1
+fi
+
+exec $PATH_BIN/nxserver-login-hook "$@"
+
+exit 1

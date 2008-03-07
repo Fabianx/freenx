@@ -1,0 +1,81 @@
+III. How you can help
+=====================
+
+1. Documentation
+----------------
+
+Documentation and experience reports are most important of course. So if you have something send it to us ;-). (FreeNX-kNX@kde.org)
+
+2. Code and Patches
+-------------------
+
+While FreeNX is a volounteer project, it of course depends on the work of 7 years kindly donated by NoMachine to the Free Software Community: 
+
+The NX open source libraries
+
+While they are mature and very good working, they need work in some very important fields. Most "difficulties" were provided by Gian Fillipo Pinzari main developer of NoMachine NX and CEO of NoMachine.
+
+2.1 Rootless nxagent
+
+This is the most needed feature at the moment. It will allow using single applications instead of a full featured desktop. Most code needed for that is already in the nxagent source tree; its just still a bit buggy and needs some "love".
+
+Difficulty: Medium
+
+2.2 Pseudo Color / True Color support
+
+This is the second most important feature needed. With the addition of Pseudo Color / True Color, it it possible to reconnect also on different depths (which is not possible at the moment). This will also make nxagent independent of the used Visuals (as far as I've understand it).
+
+Last but not least, will this allow me to use Xvfb to keep a session running, while no display is attached to it.
+
+Difficulty: Medium
+
+2.3 XRandr support
+
+XRandr support is available since version XFree86 4.3 and also most applications already support it. XRandr support would also enable one to reconnect at different geometry sizes and you could in an ideal case also just resize the window and it would work.
+
+At reconnection stage this is really important for the fullscreen mode.
+
+Difficulty: Easy
+
+2.4 XDamage support
+
+nxagent should be also able to profit from the new XDamage extension, to allow making NX sessions again even faster. 
+
+Difficulty: Easy
+
+2.5 "Lazy image encoding"
+
+Currently images are sent at once and just limited by having a small control channel open to allow fast user interaction. It would be much better if the images would be "streamed" in a way. 
+
+Quoting GFP:
+
+"> What about doing this asynchronously? Not necessarily doing it immediately,
+> but analyzing (in parallel, the data is still sent with normal compression
+> regardless) what is seen and then biasing the type of compression over
+> time based on the "popularity" of given image characteristics for a
+> specific application or window class.
+
+This is more or less what we want to do as part of the "lazy"
+image encoding functionality that is going to be implemented.
+The main goal of the "lazy" encoding is to decouple the image
+handling from other protocol requests. The effect we want to
+achieve is similar to loading a web page, where the browser
+renders the images progressively, as they are downloaded from
+the network. Once you have images sent asynchrounously, you
+have opened the way to any form of post-processing."
+
+[TODO: This part is not yet explained enough ]
+
+2.6 Drag and Drop with automatic file transfer
+
+The idea is:
+
+Grab the X Drag And Drop requests in nxagent and advise the nxproxy on the other side to stream you the file with the filename, which you have got. The file should then be saved to a temporary location and the event given to the real application. While the file is transferred nxagent should display some kind of status bar.
+
+Difficulty: ~ Medium - Difficult
+
+2.7 Add the GLX extension
+
+Add the glx extension to nxagent and also try to remove roundtrips in GLX.
+
+Difficulty: Easy - Medium

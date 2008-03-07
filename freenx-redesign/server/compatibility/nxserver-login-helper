@@ -1,0 +1,157 @@
+#!/usr/bin/expect
+#
+# nxnode-login: spawns and controls ssh|su for backwards compatibility.
+#
+# Copyright (c) 2004-2007 by Fabian Franz.
+#
+# License: GPL, version 2
+#
+# Environment variables used:
+#
+# @env COMMAND_SSH	Command for spawning ssh.
+# @env COMMAND_NETCAT	Command for spawning netcat.
+# @env NODE_PUBLICKEY	Public key for test-nx mode.
+# @env NODE_PASSWORD	Password for ssh|su mode.
+# @env NODE_HOOK_LOGIN	Supplied hook used to login the user.
+#
+# Used external programs:
+#
+# @ext COMMAND_SSH	OpenSSH SSH client (remote login program)
+# @ext su	Change user ID or become super-user
+# @ext cat	Concatenate files and print on the standard output (coreutils)
+# @ext cut	Remove sections from each line of files (coreutils)
+# @ext tr	Translate or delete characters (coreutils)
+# @ext COMMAND_NETCAT	TCP/IP swiss army knife.
+#
+# Exit codes used:
+#
+# @exit 0 Success
+# @exit 1 Authentication failed.
+# @exit 2 Redirection via netcat failed.
+#
+# Known protocol from server:
+#
+# @proto "hello NXSERVER - Version x.y.z" Banner used to determine successful connection.
+# @proto "NX> 105" Prompt to send "quit" to.
+# @proto "NX> 999 Bye." We have successfully logged out.
+# @proto "NX> 103 Welcome to: <server> user: <user>" Used to determine successful login.
+#
+# Accepted protocol extensions from nxserver / nxnode:
+#
+# @protoext * "FREENX> 100 Switch: <host>:<port>" Spawns netcat to enable SSL tunneling mode.
+#
+# Used protocol extensions to nxclient:
+#
+# @protoext 100 "FREENX> 400 Redirection failed: $error" Thrown when redirecting netcat process fails.
+#
+# Parameters used:
+#
+# @param 1 "operation mode" - can be ssh or su or test-nx
+# @param 2 username - to be used username## @param 3 "ssh port" - port provided to ssh command line
+# @param 3 executable - program to be executed as <username>
+# @param 4 parameters - parameters provided for <executable>
+#
+# Syntax used:
+#
+# nxserver-login-helper {ssh|su|test-nx} user executable parameters
+#
+# SVN: $Id$
+#
+
+set auth_method [lindex $argv 0]
+set user [lindex $argv 1]
+set executable [lindex $argv 2]
+set parameters [lindex $argv 3]
+set command_ssh "ssh"
+catch {set command_ssh $env(COMMAND_SSH)}
+set command_login "false"
+catch {set command_login $env(NODE_HOOK_LOGIN)}
+set command_netcat "netcat"
+catch {set command_netcat $env(COMMAND_NETCAT)}
+set host "127.0.0.1"
+set timeout 2
+
+#
+# Special test-nx instruction for nxsetup
+#
+
+if { "$auth_method"=="test-nx" } {
+	set stty_init "raw icrnl -echo"
+
+	set publickey ""
+	catch {set publickey $env(NODE_PUBLICKEY)}
+	set pid [spawn -noecho $command_ssh -2 -x -l "$user" "$host" -i "$publickey" -o "RhostsAuthentication no" -o "PasswordAuthentication no" -o "RSAAuthentication no" -o "RhostsRSAAuthentication no" -o "PubkeyAuthentication yes" -o "PreferredAuthentications publickey" -p "$port" "$executable $parameters" ]
+
+	expect {
+		timeout { exit 1 }
+		eof { exit 1 }
+		"Are you sure you want to continue connecting (yes/no)?" { send "yes\r"; exp_continue }
+		"Permission denied*" { exit 1 }
+		"HELLO NXSERVER - Version" { 
+			expect "NX> 105" { send "quit\r" }
+			expect "NX> 999 Bye" { exit 0 }
+		}
+	}
+	exit 1
+}
+
+#
+# Log the user in via the supplied method.
+#
+
+set password ""
+catch {set password $env(NODE_PASSWORD)}
+
+set stty_init "raw icrnl -echo"
+
+if { "$auth_method"!="test-nx" } {
+	set pid [ spawn -noecho $command_login "$auth_method" "$user" "$executable" "$parameters" ]
+} else {
+	exit 1
+}
+
+expect {
+	timeout { exit 1 }
+	eof { exit 1 }
+	"Are you sure you want to continue connecting (yes/no)?" { send "yes\r"; exp_continue }
+	"assword*:"  { sleep 0.3; send "$password\r"; set password ""; exp_continue }
+	"Permission denied*" { exit 1 }
+	"su: Authentication failure" { exit 1 }
+	"NX> 103" {
+		set redir "0"
+		interact {
+			-o "FREENX> 100 " {
+				set redir "1"
+				log_user 0
+				expect "Switch:*" { set host_port $expect_out(buffer) }
+				log_user 1
+				return
+			}
+		}
+		if { "$redir" == "1" } {
+		        # Use the spawn id as fd and send everything received from nxserver to stderr.
+		        set fd [ exp_open ]
+
+		        set pid [ exec cat <@$fd >@stderr 2>/dev/null & ]
+
+		        # we do not need fd in here anymore
+		        close $fd
+
+			set host [ exec echo -n "$host_port" | cut -d: -f2 | tr -d "' '" ]
+			set port [ exec echo -n "$host_port" | cut -d: -f3 ]
+			
+			set rc [ catch { exec $command_netcat $host $port <@stdin >@stdout } error ]
+		        catch { exec kill $pid 2>/dev/null }
+			if { "$rc" != "0" } {
+				# redirection failed
+				send_error "FREENX> 400 Redirection failed: $error\n"
+				exit 2
+			}
+		}
+
+		# all okay
+		exit 0
+	}
+} 
+# authentication failed
+exit 1

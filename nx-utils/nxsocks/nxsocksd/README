@@ -1,0 +1,46 @@
+This program was adapted for usage by NX by Fabian Franz.
+
+If the user nxsocksd is used, connections are restricted to localhost and certain ports.
+--------
+This is a small SOCKS5 server. While the usual "socksd" runs as a
+system service, perhaps on a firewall machine with no users, this one
+is intended to be run by users themselves.
+
+There are two situations where this is useful:
+
+1. User has access to a machine with less restricted connectivity than
+the machine he works on.
+
+2. User is on an insecure network and wants all network traffic to be
+enrypted using "ssh", and has access to a machine running "sshd" on a
+more secure network. "nxsocksd" contains special provisions for this
+situation.
+
+More information on how to run "nxsocksd" is in the man page.
+
+Installation: sh ./configure; make; make install.
+configure takes additional arguments --enable-debug, --enable-norelax
+and --with-socks5. configure --help for more info.
+
+This program can itself use SOCKS, although I haven't tested that
+option.
+
+Developed on Linux 2.0, tested also on HPUX 10, AIX 4.1, Solaris 2.6.
+
+Copyright (C) 1997 Olaf Titz <olaf@bigred.inka.de>
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+$Id: README,v 1.3 1998/02/24 13:24:28 olaf Exp $

@@ -1,0 +1,23 @@
+#!/bin/sh
+
+# Read the config file
+. $(PATH=$(cd $(dirname $0) && pwd):$PATH which nxloadconfig) --userconf
+
+CUPS_HOST=""
+
+# see if environment is helpful
+[ -n "$CUPS_SERVER" ] && CUPS_HOST=$CUPS_SERVER
+
+# no, lets see if the user has a cups config file
+[ -z "$CUPS_HOST" -a -f "$HOME/.cups/client.conf" ] && CUPS_HOST=$(grep "^ServerName " "$HOME/.cups/client.conf" | sed 's/^ServerName //g; s/#.*//g')
+
+# not even close, so lets use the kdeprintrcs configuration key
+[ -z "$CUPS_HOST" ] && CUPS_HOST=$(grep "^Host=" "$KDE_PRINTRC" | cut -d'=' -f2)
+
+# Hm, perhaps there is a global cupsd running on this host
+[ -z "$CUPS_HOST" -a -S "$CUPS_DEFAULT_SOCK" ] && CUPS_HOST="$CUPS_DEFAULT_SOCK" 
+
+# no, no, no - so we fallback to localhost
+[ -z "$CUPS_HOST" ] && CUPS_HOST="127.0.0.1"
+
+echo "$CUPS_HOST"

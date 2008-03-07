@@ -1,0 +1,33 @@
+DESIGN
+
+A few notes on the design of this library and how to implement an app to use it.
+
+The callback interface is exactly the same as with nxc, except with more functions.
+It uses a class with a load of virtual functions which need to be re-implemented
+by a class which inherits them. Use setCallback() in NXClientLib to pass a pointer
+for the callback interface to NXClientLib.
+
+Regarding output from nxssh, stdout and stderr are stored in QStrings and then passed
+to the NXSession class (function parseSSH) for analysis. This function returns a
+QString which is the reply that should be sent to nxssh on stdin. This can be written
+using the write() function in NXClientLib.
+
+Regarding the public key, I'm considering dumping the default NoMachine public key in
+/usr/share/nxclientlib/data for *nix and Program Files\nxclientlib\data for Windows.
+For fallback purposes (if the key can't be found) I have also hardcoded the default
+key into nxclientlib.cpp as a QByteArray. This is written to a temporary file
+(provided by QTemporaryFile) and passed to nxssh. It shall be deleted after nxssh
+has used it for authenticating.
+
+For session data, there are two structs implemented in nxsession.h. The one for generic
+session data is NXSessionData, and the one to hold information on suspended sessions
+returned by nxssh is called NXResumeData. To start a new session simply pass all the
+session parameters in a variable of type NXSessionData to NXClientLib using function
+setSession().
+
+An std::vector<NXResumeData> is passed back to the controlling app via the callback
+interface for the parent app to do what they want with it. For resuming the session,
+the parent app simply sends a NXSessionData variable as usual but with the bool
+suspended set to true. This will tell NXClientLib that the session is an already
+running, but suspended, one.
+

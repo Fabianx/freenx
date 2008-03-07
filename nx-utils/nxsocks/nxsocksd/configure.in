@@ -1,0 +1,187 @@
+dnl     configure.in for nxsocksd. This is -*-fundamental-*-
+dnl     Copyright 1997 Olaf Titz <olaf@bigred.inka.de>
+
+dnl     Process this file with autoconf to produce a configure script.
+
+AC_INIT(thread.c)
+AC_CONFIG_HEADER(config.h)
+
+VERSION="0.9.3"
+DATE="13 May 1999"
+
+dnl
+dnl     Checks for programs.
+dnl
+
+AC_PROG_CC
+dnl  Ouch. Some systems need idiosyncratic options to shut off unnecessary
+dnl  compiler warnings. The XOPEN_ bit is "interesting".
+AC_CACHE_CHECK(whether the C compiler needs additional flags,ot_cv_cxflags,[
+    set `uname -a`
+    ostype=$1
+    osrel=$3
+    case "$ostype" in
+      SunOS)
+        case "$osrel" in
+          5.*)  test "$GCC" = yes || ot_cv_cxflags="-erroff" ;;
+        esac
+      ;;
+      HP-UX)
+	test "$GCC" = yes || ot_cv_cxflags="-Ae"
+	ot_cv_cxflags="$ot_cv_cxflags -D_XOPEN_SOURCE_EXTENDED=1"
+      ;;
+      AIX)
+        ot_cv_cxflags="-D_BSD=43 -D_XOPEN_EXTENDED_SOURCE"
+        LIBS="$LIBS -lbsd"
+      ;;
+      Linux)
+	dnl vfork() on Linux 2.2 is less efficient than fork()
+	ac_cv_func_vfork=no
+      ;;
+    esac
+])
+CFLAGS="$CFLAGS $ot_cv_cxflags"
+test "$GCC" = yes && CFLAGS="-Wall -Wstrict-prototypes $CFLAGS"
+AC_PROG_INSTALL
+AC_PROG_RANLIB
+
+AC_ARG_WITH(ping, [  --with-ping=path:       Give path of ping program], [
+  test "$withval" = "no" || ping=$withval
+], [
+  AC_PATH_PROG(ping, ping, , $PATH:/etc:/sbin:/usr/sbin)
+])
+test -n "$ping" && AC_DEFINE_UNQUOTED(PATH_PING, "$ping")
+AC_ARG_WITH(traceroute, [  --with-traceroute=path: Give path of traceroute program], [
+  test "$withval" = "no" || trace=$withval
+], [
+  AC_PATH_PROG(trace, traceroute, , $PATH:/etc:/sbin:/usr/sbin)
+])
+test -n "$trace" && AC_DEFINE_UNQUOTED(PATH_TRACE, "$trace")
+
+dnl
+dnl     Checks for braindead systems.
+dnl
+
+AC_AIX
+
+dnl
+dnl     Configuration options.
+dnl
+
+AC_ARG_WITH(socks,    [  --with-socks:           Support for running this server itself with SOCKS], [
+  AC_CHECK_LIB(socks5,connect,,[
+    AC_MSG_RESULT([warning: no SOCKS5 library found, --with-socks disabled])
+  ])
+])
+
+DEBUG=1
+AC_ARG_ENABLE(debug,  [  --disable-debug:        No support for tracing output], [
+  test "$enableval" = "no" && DEBUG=0
+])
+AC_SUBST(DEBUG)
+test "$DEBUG" = 1 && AC_DEFINE(DEBUG)
+
+NORELAX=0
+AC_ARG_ENABLE(norelax,[  --enable-norelax:       Enforce restricted connections], [
+  test "$enableval" = "no" || NORELAX=1
+])
+AC_SUBST(NORELAX)
+test "$NORELAX" = 1 && AC_DEFINE(NORELAX)
+
+DO_SPAWN=1
+AC_ARG_ENABLE(spawn,  [  --disable-spawn:        Disable external progs (ping/traceroute)], [
+  test "$enableval" = "no" && DO_SPAWN=0
+])
+AC_SUBST(DO_SPAWN)
+
+dnl
+dnl     Checks for libraries.
+dnl
+
+AC_CHECK_LIB(socket,socket)
+dnl kludge to avoid -lnsl -lresolv on Linux libc5/6 mixed systems
+case "$CC" in
+*linux*libc1*) ;;
+*) AC_CHECK_LIB(nsl,gethostbyname)
+   AC_CHECK_LIB(resolv,res_mkquery)
+esac
+dnl  Ultimately we should use the resolver routines from the library
+dnl  instead of rolling our own. This requires "hooks" support and the 8.1.2
+dnl  resolver is known to have that. Currently unused test.
+AC_CACHE_CHECK(for BIND >=8.1.2 resolver,ot_cv_have_new_libresolv,[
+  AC_EGREP_CPP(yes,[
+#include <resolv.h>
+#if (__RES >= 19960801)
+yes
+#endif
+  ], ot_cv_have_new_libresolv=yes, ot_cv_have_new_libresolv=no)
+])
+test "$ot_cv_have_new_libresolv" = "yes" && AC_DEFINE(HAVE_NEW_LIBRESOLV)
+
+dnl
+dnl     Checks for header files.
+dnl
+
+AC_HEADER_STDC
+AC_CHECK_HEADERS(strings.h sys/select.h termios.h)
+
+AC_CACHE_CHECK(whether resolv.h needs stdio.h,ot_cv_header_resolv_stdio,[
+  AC_EGREP_HEADER(FILE,resolv.h,ot_cv_header_resolv_stdio=yes,\
+        ot_cv_header_resolv_stdio=no)
+])
+test "$ot_cv_header_resolv_stdio" = "yes" && AC_DEFINE(RESOLV_NEEDS_STDIO)
+
+dnl  There are two versions of "new" BIND resolv.h out there,
+dnl  which use "struct __res_state" and "struct state", respectively.
+dnl  Old resolv.h (Ultrix...) wont work at all, by now.
+
+AC_CACHE_CHECK(for __res_state in resolv.h,ot_cv_decl_resstate,[
+  AC_EGREP_HEADER(struct __res_state,resolv.h,ot_cv_decl_resstate=yes,\
+        ot_cv_decl_resstate=no)
+])
+test "$ot_cv_decl_resstate" = "yes" && AC_DEFINE(RES_STATE,__res_state)
+test "$ot_cv_decl_resstate" = "no" && AC_DEFINE(RES_STATE,state)
+
+dnl
+dnl     Checks for typedefs, structures, and compiler characteristics.
+dnl
+
+AC_C_CONST
+AC_C_INLINE
+AC_TYPE_SIZE_T
+AC_TYPE_SIGNAL
+AX_CHECK_TYPE(sig_atomic_t, signal.h, int)
+
+dnl
+dnl     Checks for library functions.
+dnl
+
+AC_CHECK_FUNCS(memset sigaction vfork waitpid wait3 wait4 strrchr strdup)
+AC_FUNC_SETVBUF_REVERSED
+
+dnl  On Linux, sendmsg is not in libc4, but we can roll our own with
+dnl  the system headers. Other systems without sendmsg lose.
+AC_CHECK_FUNC(sendmsg,,[
+  AC_CHECK_HEADER(linux/unistd.h,AC_DEFINE(HAVE_LINUX_LIBC4))
+])
+
+dnl
+dnl     Checks for system services.
+dnl
+
+dnl  This will become a real test later.
+dnl  False-positively defining this doesnt hurt anyway (on Linux at least).
+AC_DEFINE(NONBLOCK_ONCE)
+dnl To do: undef DO_SPAWN when SIGCHLD is broken.
+test "$DO_SPAWN" = 1 && AC_DEFINE(DO_SPAWN)
+
+
+dnl  Version definition.
+
+AC_SUBST(VERSION)
+AC_SUBST(DATE)
+AC_DEFINE_UNQUOTED(VERSION, "$VERSION")
+AC_DEFINE_UNQUOTED(DATE, "$DATE")
+
+AC_OUTPUT(Makefile nxsocksd.1)
+dnl AC_CONFIG_SUBDIRS(libresolv)

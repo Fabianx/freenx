@@ -1,0 +1,203 @@
+#!/bin/bash
+
+# nxserver-login - Provide compatibility shell as nx@ user to login as a 
+#                  real user.
+#
+# Copyright (c) 2007 by Fabian Franz <FreeNX@fabian-franz.de>.
+#
+# License: GNU GPL, version 2
+#
+# Used configuration keys:
+#
+# @param NXSERVER_LOGIN_AUTHENTICATION_METHOD Authentication method to use. (ssh|su)
+# @param NXSERVER_LOGIN_HOOK_LOGIN_USER Script run to login the user. (executable script)
+#
+# Used internal subfunctions:
+# 
+# @sub echo_x echo and possibly log and/or translate
+# @sub read_x read with specified timeout
+# @sub "read_x_prompt <prompt> " like read_x but show <prompt> first
+# @sub "log n" log to (sys)log with loglevel n
+#
+# Used internal variables:
+#
+# @var LOG_INFO Used for loglevel "Information"
+# @var LOG_WARN Used for loglevel "Warning"
+# @var COMMAND_NETCAT Complete path to netcat binary
+# 
+# Used internal components:
+# 
+# @comp nxserver-login-helper 
+#
+# Used external programs:
+#
+# @ext COMMAND_NETCAT netcat - The network swiss army knife.
+#
+# Accepted protocol requests from client:
+#
+# @req "hello NXCLIENT - Version x.y.z" Say hello and advertise version.
+# @req "set auth_mode password" Set the authmode to password - currently unused.
+# @req quit Quit the server session.
+# @req exit Quit the server session.
+# @req bye Quit the server session.
+# @req login Login to the server.
+#
+# Used protocol responses to client:
+#
+# @rsp *	"NX> 105 " Prompt for new request.
+# @rsp hello	"NX> 134 Accepted protocol: x.y.z" Answer that protocol x.y.z is supported by the server.
+# @rsp set	"set .*" If set was successful the whole set command is repeated.
+# @rsp set	"NX> 500 Error: Unknown ..." If set failed an error is thrown.
+# @rsp login	"NX> 101 User: " Prompt for username.
+# @rsp 101	"NX> 102 Password: " Prompt for password.
+# @rsp 102	"NX> 404 ERROR: wrong password or login" Answer for wrong user or wrong password.
+# @rsp 102	"NX> 103 Welcome" Used implicitely as nxserver-login-helper will go into interact mode on 103.
+# @rsp *	"NX> 996 ERROR: Operation timeout in server protocol" Thrown if the read_x times out.
+# @rsp bye	"NX> 999 Bye."
+# @rsp exit	"NX> 999 Bye."
+# @rsp quit	"NX> 999 Bye."
+# 
+# FAQ-Questions:
+#
+# @faq "Where is the passdb authentication?" "The passdb authentication was dropped from FreeNX as it was not used by many users anyway and PAM authentication can basically do the same. As FreeNX now also discourages the nx@host login method and instead suggests logging the user in directly, there are even less reasons to keep it. "
+#
+# @faq "What about the USERMODE? Why was it removed?" "The usermode is now one of the default modes of FreeNX. nxserver-login really is only a small wrapper to remain compatible with old clients."
+#
+# @faq "How can I restrict the users that are able to run an nxsession?" "You can set the configuration key NXSERVER_LOGIN_HOOK_LOGIN_USER in nxserver-login.cfg to a custom script. This script gets the following parameters: <authentication method> <username> <executable> <parameters>. You can then control if the user is allowed to do so, before doing the actual login. To give you just some ideas: file with names, part of group, LDAP, ... are all possible ways to check this. There is an example script in examples/ called nxserver-login-userhook, which you can use as a basis."
+#
+# SVN: $Id$
+#
+
+# Defaults for configuration keys
+NXSERVER_LOGIN_HOOK_LOGIN_USER=""
+NXSERVER_LOGIN_AUTHENTICATION_METHOD="su"
+
+#Read the nxserver-login.cfg file and load some helper functions
+#. $(PATH=$(cd $(dirname $0) && pwd):$PATH which nxloadconfig) -- --config=nxserver-login || { echo "NX 503> Internal server error. nxloadconfig could not be loaded."; exit 1; }
+
+# FIXME: Remove this section once nxloadconfig above works
+
+PATH_BIN=$(cd $(dirname $0) && pwd)
+COMMAND_NETCAT="$(which netcat)"
+
+echo_x() 
+{
+	echo "$@"
+}
+
+log()
+{
+	echo "LOG: $@"
+} 
+read_x()
+{
+	read -t 10 "$@"
+}
+
+read_x_prompt() 
+{
+	echo_x -n "$1"
+	shift
+	read_x "$@"
+}
+
+# Re-check configuration keys
+
+if [ -n "$NXSERVER_LOGIN_HOOK_LOGIN_USER" -a ! -x "$NXSERVER_LOGIN_HOOK_LOGIN_USER" ]
+then
+	log $LOG_WARN $"Warning: Configuration key NXSERVER_LOGIN_HOOK_LOGIN_USER=$NXSERVER_LOGIN_HOOK_LOGIN_USER is invalid. Reset to \"\"."
+	NXSERVER_LOGIN_HOOK_LOGIN_USER=""
+fi
+
+case "$NXSERVER_LOGIN_AUTHENTICATION_METHOD" in
+	ssh|su)
+	;;
+	*)
+		log $LOG_WARN $"Warning: Configuration key NXSERVER_LOGIN_AUTHENTICATION_METHOD=$NXSERVER_LOGIN_AUTHENTICATION_METHOD is invalid. Reset to su."
+		NXSERVER_LOGIN_AUTHENTICATION_METHOD="su"
+	;;
+esac
+
+
+# helper functions
+
+timeout()
+{
+	echo_x $"NX> 996 ERROR: Operation timeout in server protocol"
+	echo_x $"NX> 999 Bye."
+	exit 1
+}
+
+# main program
+
+echo_x "HELLO NXSERVER - Version $NX_VERSION $NX_LICENSE"
+
+# Login stage
+while read_x_prompt "NX> 105 " CMD
+do
+	echo_x "$CMD"
+	
+	case "$CMD" in 
+		quit|QUIT)
+			echo_x "Quit"
+			break
+		;;
+		exit|EXIT)
+			echo_x "Exit"
+			break
+		;;
+		bye|BYE)
+			echo_x "Bye"
+			break
+		;;
+		hello*|HELLO*)
+			PROTO=$(echo $CMD | sed 's/.*Version \(.*\)/\1/g')
+			echo_x $"NX> 134 Accepted protocol: $PROTO"
+		;;
+		"set auth_mode*"|"SET AUTH_MODE*")
+			if [ "$CMD" = "set auth_mode password" -o "$CMD" = "SET AUTH_MODE PASSWORD" ]
+			then
+				echo_x "Set auth_mode: password"
+			else
+				echo_x $"NX> 500 ERROR: unknown auth mode ''"
+			fi
+		;;
+		login|LOGIN)
+			LOGIN_SUCCESS="0"
+			
+			echo_x -n $"NX> 101 User: "
+			read_x USER || timeout
+			echo_x $USER
+			
+			echo_x -n $"NX> 102 Password: "
+			read_x -s PASS || timeout
+			echo_x ""
+			log $LOG_INFO $"Info: Using authentication method $NXSERVER_LOGIN_AUTHENTICATION_METHOD for user $USER."
+
+			NODE_HOOK_LOGIN="$PATH_BIN/nxserver-login-hook"
+			[ -n "$NXSERVER_LOGIN_HOOK_LOGIN_USER" ] && NODE_HOOK_LOGIN="$NXSERVER_LOGIN_HOOK_LOGIN_USER"
+			export NODE_HOOK_LOGIN
+
+			NODE_PASSWORD="$PASS" $PATH_BIN/nxserver-login-helper -- "$NXSERVER_LOGIN_AUTHENTICATION_METHOD" "$USER" "$PATH_BIN/nxserver-suid" "--proto=$PROTO"
+			AUTHENTICATION_FAILED="$?"
+			
+			if [ "$AUTHENTICATION_FAILED" = "1" ]
+			then
+				echo_x $"NX> 404 ERROR: wrong password or login"
+				echo_x $"NX> 999 Bye."
+				exit 1
+			fi
+			
+			if [ "$AUTHENTICATION_FAILED" = "2" ]
+			then
+				echo_x $"NX> 503 ERROR: Redirection to nxagent failed."
+				echo_x $"NX> 999 Bye."
+				exit 2
+			fi
+
+			exit 0
+		;;
+	esac
+done
+echo_x $"NX> 999 Bye."
+exit 0

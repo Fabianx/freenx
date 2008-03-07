@@ -1,0 +1,53 @@
+#!/bin/bash
+#
+# Simple script run by dnotify.
+#
+# Copyright (c) 2005 by Fabian Franz.
+#
+# License: GPL, version 2.
+#
+#
+
+watch_session()
+{
+	[ -f $1.monitored ] && return 1
+	touch $1.monitored
+	echo "Info $1: Monitoring."
+	NXSOCKSD_PID=""
+	tail -f $1 | while read line
+	do
+		#echo "Info $1: Got line: $line"
+		case $line in
+			"Info: Forwarding cups connections to port "*)
+			NXSOCKS_PORT=$(echo $line  | cut -d"'" -f2)
+			NXSOCKS_COOKIE=$(grep "cookie=" $(dirname $1)/options | sed 's/.*cookie=//g' | cut -d',' -f1)
+			NXSOCKS_PASSWORD="$NXSOCKS_COOKIE" nxsocksd -p "$NXSOCKS_PORT" -a 127.0.0.1 -u 127.0.0.1 -U nxsocksd &
+			NXSOCKSD_PID=$!
+			disown $!
+			;;
+			"Info: Shutting down the link and exiting."*)
+				echo "Info $1: Shutting down and removing session infos."
+				[ -n $NXSOCKSD_PID ] && kill "$NXSOCKSD_PID"
+				rm -f $1.monitored
+				rm -f $(dirname $1)/{errors,stats,session,options}
+				rmdir $(dirname $1)
+				return 0
+			;;
+		esac
+	done
+	return 1
+}
+
+echo "Info: Scanning ..."
+
+# Wait a moment for the session file to appear
+sleep 1
+LIST=$(find ~/.nx/ -name session -cnewer ~/.nx/notify-ref)
+
+touch ~/.nx/notify-ref
+
+for i in $LIST
+do
+	watch_session $i &
+	disown $!
+done
