@@ -17,7 +17,6 @@
 # @sub echo_x echo and possibly log and/or translate
 # @sub read_x read with specified timeout
 # @sub "read_x_prompt <prompt> " like read_x but show <prompt> first
-# @sub "log n" log to (sys)log with loglevel n
 #
 # Used internal variables:
 #
@@ -53,9 +52,9 @@
 # @rsp 102	"NX> 404 ERROR: wrong password or login" Answer for wrong user or wrong password.
 # @rsp 102	"NX> 103 Welcome" Used implicitely as nxserver-login-helper will go into interact mode on 103.
 # @rsp *	"NX> 996 ERROR: Operation timeout in server protocol" Thrown if the read_x times out.
-# @rsp bye	"NX> 999 Bye."
-# @rsp exit	"NX> 999 Bye."
-# @rsp quit	"NX> 999 Bye."
+# @rsp bye	"NX> 999 Bye"
+# @rsp exit	"NX> 999 Bye"
+# @rsp quit	"NX> 999 Bye"
 # 
 # FAQ-Questions:
 #
@@ -72,26 +71,21 @@
 NXSERVER_LOGIN_HOOK_LOGIN_USER=""
 NXSERVER_LOGIN_AUTHENTICATION_METHOD="su"
 
+_NXLOADCONFIG="$(cd $(dirname $0) && pwd -L)/nxloadconfig"
+[ -f "$_NXLOADCONFIG" ] || _NXLOADCONFIG='nxloadconfig'
+
 #Read the nxserver-login.cfg file and load some helper functions
-#. $(PATH=$(cd $(dirname $0) && pwd):$PATH which nxloadconfig) -- --config=nxserver-login || { echo "NX 503> Internal server error. nxloadconfig could not be loaded."; exit 1; }
-
-# FIXME: Remove this section once nxloadconfig above works
-
-PATH_BIN=$(cd $(dirname $0) && pwd)
-COMMAND_NETCAT="$(which netcat)"
+. "$_NXLOADCONFIG" --config="nxserver-login" || { echo "NX 503> Internal server error. nxloadconfig could not be loaded."; exit 1; }
 
 echo_x() 
 {
 	echo "$@"
+  nxlog_log DEBUG "Sent: $@"
 }
 
-log()
-{
-	echo "LOG: $@"
-} 
 read_x()
 {
-	read -t 10 "$@"
+	read -t "${READ_X_TIMEOUT:-10}" "$@" || { echo_x; return 1; }
 }
 
 read_x_prompt() 
@@ -100,24 +94,6 @@ read_x_prompt()
 	shift
 	read_x "$@"
 }
-
-# Re-check configuration keys
-
-if [ -n "$NXSERVER_LOGIN_HOOK_LOGIN_USER" -a ! -x "$NXSERVER_LOGIN_HOOK_LOGIN_USER" ]
-then
-	log $LOG_WARN $"Warning: Configuration key NXSERVER_LOGIN_HOOK_LOGIN_USER=$NXSERVER_LOGIN_HOOK_LOGIN_USER is invalid. Reset to \"\"."
-	NXSERVER_LOGIN_HOOK_LOGIN_USER=""
-fi
-
-case "$NXSERVER_LOGIN_AUTHENTICATION_METHOD" in
-	ssh|su)
-	;;
-	*)
-		log $LOG_WARN $"Warning: Configuration key NXSERVER_LOGIN_AUTHENTICATION_METHOD=$NXSERVER_LOGIN_AUTHENTICATION_METHOD is invalid. Reset to su."
-		NXSERVER_LOGIN_AUTHENTICATION_METHOD="su"
-	;;
-esac
-
 
 # helper functions
 
@@ -128,76 +104,140 @@ timeout()
 	exit 1
 }
 
-# main program
+config_check()
+{
+  # Re-check configuration keys
 
-echo_x "HELLO NXSERVER - Version $NX_VERSION $NX_LICENSE"
+  if [ -n "$NXSERVER_LOGIN_HOOK_LOGIN_USER" -a ! -x "$NXSERVER_LOGIN_HOOK_LOGIN_USER" ]
+  then
+    nxlog_log WARNING $"Warning: Configuration key NXSERVER_LOGIN_HOOK_LOGIN_USER=$NXSERVER_LOGIN_HOOK_LOGIN_USER is invalid. Reset to \"\"."
+    NXSERVER_LOGIN_HOOK_LOGIN_USER=""
+  fi
 
-# Login stage
-while read_x_prompt "NX> 105 " CMD
-do
-	echo_x "$CMD"
-	
-	case "$CMD" in 
-		quit|QUIT)
-			echo_x "Quit"
-			break
-		;;
-		exit|EXIT)
-			echo_x "Exit"
-			break
-		;;
-		bye|BYE)
-			echo_x "Bye"
-			break
-		;;
-		hello*|HELLO*)
-			PROTO=$(echo $CMD | sed 's/.*Version \(.*\)/\1/g')
-			echo_x $"NX> 134 Accepted protocol: $PROTO"
-		;;
-		"set auth_mode*"|"SET AUTH_MODE*")
-			if [ "$CMD" = "set auth_mode password" -o "$CMD" = "SET AUTH_MODE PASSWORD" ]
-			then
-				echo_x "Set auth_mode: password"
-			else
-				echo_x $"NX> 500 ERROR: unknown auth mode ''"
-			fi
-		;;
-		login|LOGIN)
-			LOGIN_SUCCESS="0"
-			
-			echo_x -n $"NX> 101 User: "
-			read_x USER || timeout
-			echo_x $USER
-			
-			echo_x -n $"NX> 102 Password: "
-			read_x -s PASS || timeout
-			echo_x ""
-			log $LOG_INFO $"Info: Using authentication method $NXSERVER_LOGIN_AUTHENTICATION_METHOD for user $USER."
+  case "$NXSERVER_LOGIN_AUTHENTICATION_METHOD" in
+    ssh|su)
+    ;;
+    *)
+      nxlog_log WARNING $"Warning: Configuration key NXSERVER_LOGIN_AUTHENTICATION_METHOD=$NXSERVER_LOGIN_AUTHENTICATION_METHOD is invalid. Reset to su."
+      NXSERVER_LOGIN_AUTHENTICATION_METHOD="su"
+    ;;
+  esac
+}
 
-			NODE_HOOK_LOGIN="$PATH_BIN/nxserver-login-hook"
-			[ -n "$NXSERVER_LOGIN_HOOK_LOGIN_USER" ] && NODE_HOOK_LOGIN="$NXSERVER_LOGIN_HOOK_LOGIN_USER"
-			export NODE_HOOK_LOGIN
+nxserver-login_main()
+{
+  # main program
 
-			NODE_PASSWORD="$PASS" $PATH_BIN/nxserver-login-helper -- "$NXSERVER_LOGIN_AUTHENTICATION_METHOD" "$USER" "$PATH_BIN/nxserver-suid" "--proto=$PROTO"
-			AUTHENTICATION_FAILED="$?"
-			
-			if [ "$AUTHENTICATION_FAILED" = "1" ]
-			then
-				echo_x $"NX> 404 ERROR: wrong password or login"
-				echo_x $"NX> 999 Bye."
-				exit 1
-			fi
-			
-			if [ "$AUTHENTICATION_FAILED" = "2" ]
-			then
-				echo_x $"NX> 503 ERROR: Redirection to nxagent failed."
-				echo_x $"NX> 999 Bye."
-				exit 2
-			fi
+  echo_x "HELLO NXSERVER - Version $NX_VERSION $NX_LICENSE"
+  nxlog_log INFO "Started"
 
-			exit 0
-		;;
-	esac
-done
-echo_x $"NX> 999 Bye."
-exit 0
+  # Login stage
+  while read_x_prompt "NX> 105 " CMD
+  do
+    nxlog_log DEBUG "Got: $CMD"
+    CMD=$(echo $CMD | tr '[A-Z]' '[a-z]')
+    case "$CMD" in
+      quit)
+        echo_x "Quit"
+        nxlog_log DEBUG "Exiting"
+        break
+      ;;
+      exit)
+        echo_x "Exit"
+        nxlog_log DEBUG "Exiting"
+        break
+      ;;
+      bye)
+        echo_x "Bye"
+        nxlog_log DEBUG "Exiting"
+        break
+      ;;
+      hello*)
+        echo_x "$CMD"
+        CLIENT_PROTO="$(echo $CMD | sed 's/.*[Vv]ersion \(.*\)/\1/g')"
+        PROTO="$(echo -e "$NX_VERSION\n$CLIENT_PROTO" | \
+            sort -n -t. -k1,1 -k2,2 -k3 | head -1)"
+        echo_x $"NX> 134 Accepted protocol: $PROTO"
+      ;;
+      set\ auth_mode\ *)
+        mode=$(echo "$CMD" | sed 's/^[^[:blank:]]\+ [^[:blank:]]\+ \(.*\)/\1/')
+        echo_x "Set auth_mode: $mode"
+        if ! echo "$mode" | egrep -q "password"; then
+          echo_x "NX> 500 ERROR: unknown auth mode ''"
+        fi
+      ;;
+      set\ shell_mode\ *)
+        mode=$(echo "$CMD" | sed 's/^[^[:blank:]]\+ [^[:blank:]]\+ \(.*\)/\1/')
+        echo_x "Set shell_mode: $mode"
+        if ! echo "$mode" | egrep -q "shell"; then
+          echo_x "NX> 500 ERROR: unknown shell mode ''"
+        fi
+      ;;
+      login)
+        echo_x "$CMD"
+        LOGIN_SUCCESS="0"
+
+        echo_x -n $"NX> 101 User: "
+        read_x USER || timeout
+        echo_x $USER
+
+        echo_x -n $"NX> 102 Password: "
+        read_x -s PASS || timeout
+        echo_x "**********"
+        nxlog_log INFO "Info: Using authentication method $NXSERVER_LOGIN_AUTHENTICATION_METHOD for user $USER."
+
+        NODE_HOOK_LOGIN="$PATH_BIN/nxserver-login-hook"
+        [ -n "$NXSERVER_LOGIN_HOOK_LOGIN_USER" ] && \
+            NODE_HOOK_LOGIN="$NXSERVER_LOGIN_HOOK_LOGIN_USER"
+        export NODE_HOOK_LOGIN
+
+        # Redirection is used to get around | only being useful for stdout.
+        nxlog_log INFO "Info: Invoking nxserver-login-helper"
+        # This fifo is opened by nxserver-login-helper to log through
+        export SERVER_LOGIN_HELPER_LOG="$(mktemp -d /tmp/nxserver-login.XXXXXX)/fifo"
+        mkfifo "$SERVER_LOGIN_HELPER_LOG"
+        (
+          nxlog_log DEBUG "Starting to log nxserver-login-helper debug output $SERVER_LOGIN_HELPER_LOG"
+          NXLOG_LOG_PIPE_PREFIX="helper output:" nxlog_log_pipe DEBUG < "$SERVER_LOGIN_HELPER_LOG"
+          nxlog_log DEBUG "Finished logging nxserver-login-helper debug output"
+          # Cleanup after the fifo
+          rm "$SERVER_LOGIN_HELPER_LOG"
+          rmdir $(dirname "$SERVER_LOGIN_HELPER_LOG")
+        ) &
+        NODE_PASSWORD="$PASS" "$PATH_BIN/nxserver-login-helper" -- \
+          "$NXSERVER_LOGIN_AUTHENTICATION_METHOD" "$USER" \
+          "$PATH_BIN/nxserver-suid" "--proto=${PROTO:-}"
+
+        AUTHENTICATION_FAILED="$?"
+
+        if [ "$AUTHENTICATION_FAILED" = "0" ]
+        then
+          true
+        elif [ "$AUTHENTICATION_FAILED" = "1" ]
+        then
+          echo_x $"NX> 404 ERROR: wrong password or login."
+          echo_x $"NX> 999 Bye."
+          exit 1
+        elif [ "$AUTHENTICATION_FAILED" = "2" ]
+        then
+          echo_x $"NX> 503 ERROR: Redirection to nxagent failed."
+          echo_x $"NX> 999 Bye."
+          exit 2
+        else
+          echo_x $"NX> 500 ERROR: Unknown error \"$AUTHENTICATION_FAILED\" occurred while logging in."
+          echo_x $"NX> 999 Bye."
+          exit 3
+        fi
+
+        exit 0
+      ;;
+    esac
+  done
+  echo_x "NX> 999 Bye."
+  exit 0
+}
+
+if [ -z "${UNITTESTING:-}" ]; then
+  config_check
+  nxserver-login_main
+fi

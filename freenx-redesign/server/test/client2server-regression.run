@@ -1,0 +1,199 @@
+#!/bin/sh
+#
+# Copyright 2007 Google Inc.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+#
+# Author: diamond@google.com (Stephen Shirley)
+
+. "./include/test-functions.inc" && setupTestDirs
+
+NXSERVER=/usr/NX/bin/nxserver
+NXUSER=nx
+
+runNxServer()
+{
+  LD_LIBRARY_PATH=/usr/NX/lib /usr/NX/bin/nxssh -nx -i /usr/NX/share/keys/server.id_dsa.key "$NXUSER"@"$HOSTNAME"
+}
+
+doPrelim()
+{
+  recvCheckRegx "Nxssh running line" \
+    '^NX> 203 NXSSH running with pid: [[:digit:]]+$'
+
+  recvCheck "Nxssh connected line wrong" \
+    "NX> 200 Connected to address: $(hostname -i) on port: 22"
+
+  recvCheck "Nxssh auth line wrong" \
+   "NX> 202 Authenticating user: $NXUSER"
+
+  recvCheck "Nxssh using auth method line wrong" \
+    "NX> 208 Using auth method: publickey"
+
+  recvCheckRegx 'Banner' \
+    '^HELLO NXSERVER - Version [^[:blank:]]+ .*$'
+
+  NXCLIENTHELLO="hello nxclient - version $NXCLIENTVER"
+  sendRecvCheck "$NXCLIENTHELLO" "Client hello came back wrong" \
+    "NX> 105 $NXCLIENTHELLO"
+
+  recvCheck "Client hello reply wrong" "NX> 134 Accepted protocol: $NXCLIENTVER"
+
+  sendRecvCheck "set shell_mode shell" "Shell mode came back wrong" "NX> 105 set shell_mode: shell"
+
+  sendRecvCheck "set auth_mode password" "Auth mode came back wrong" "NX> 105 set auth_mode: password"
+
+  NXLOGIN="login"
+  sendRecvCheck "$NXLOGIN" "Login came back wrong" "NX> 105 $NXLOGIN "
+}
+
+setupLoginCorrectUsernameWrongPassword() {
+  NXUSERNAME="nxtest"
+  NXPASSWORD="haha.no."
+  NXPASSWORDREPLY="NX> 404 ERROR: WRONG PASSWORD OR LOGIN."
+}
+
+setupLoginCorrectUsernameCorrectPassword() {
+  NXUSERNAME="nxtest"
+  NXPASSWORD="haha.yes."
+  NXPASSWORDREPLY="NX> 103 WELCOME TO: $HOSTNAME USER: $NXUSERNAME"
+}
+
+setupLoginWrongUsername() {
+  NXUSERNAME="nxfail"
+  NXPASSWORD="haha.no."
+  NXPASSWORDREPLY="NX> 404 ERROR: WRONG PASSWORD OR LOGIN."
+}
+
+doLogin()
+{
+  NXUSERNAME_RESPONSE="user: $NXUSERNAME"
+  NXPASSWORD_RESPONSE="password: $(echo $NXPASSWORD | sed 's/./*/g')"
+
+  sendRecvCheck "$NXUSERNAME" "Username came back wrong" "NX> 101 $NXUSERNAME_RESPONSE"
+
+  sendRecvCheck "$NXPASSWORD" "Password came back wrong" "NX> 102 $NXPASSWORD_RESPONSE"
+
+  recvCheck "Password reply wrong" "$NXPASSWORDREPLY"
+}
+
+doListSessions()
+{
+  NXLISTSESSION="listsession"
+  if [ "$@" ]; then
+    NXLISTSESSION="$NXLISTSESSION $@"
+  fi
+
+  sendRecvCheck "$NXLISTSESSION" "Listsession came back wrong" "NX> 105 $NXLISTSESSION "
+
+  recvCheck "Listsession reply(0) wrong" "NX> 127 SESSION LIST OF USER '$NXUSERNAME': "
+  recvCheck "Listsession reply(1) wrong" ""
+  recvCheck "Listsession reply(2) wrong" "DISPLAY USERNAME        REMOTE IP       SESSION ID                       NODE"
+  recvCheck "Listsession reply(3) wrong" "------- --------------- --------------- -------------------------------- -----------"
+}
+
+doListNoSessions()
+{
+  doListSessions
+  recvCheck "Listsession reply(4) wrong" ""
+}
+
+doStartSession()
+{
+  MOSTARGS='--link="adsl" --backingstore="1" --streaming="1" --nodelay="1" --encryption="1" --cache="8M" --images="32M" --shmem="1" --shpix="1" --strict="0" --composite="1" --media="0" --session="graphite-euw" --type="unix-kde" --geometry="2400x1870" --client="linux"'
+
+  SESSIONARGS="$MOSTARGS --keyboard=\"pc105/gb\""
+  sendRecvCheck "startsession $SESSIONARGS" "Startsession came back wrong" \
+    "NX> 105 START SESSION WITH: $MOSTARGS --keyboard=\"pc105057gb\" "
+
+  recvCheckRegx "Session reply wrong" 'NX> 700 SESSION ID: '"$HOSTNAME"'-[[:digit:]]+-[[:digit:]ABCDEF]+$'
+}
+
+doNormalSetup()
+{
+  setupLoginCorrectUsernameCorrectPassword
+  doPrelim
+  doLogin
+}
+
+setUp()
+{
+  rm -f .extern.*
+  mkfifo .extern.stdin
+  mkfifo .extern.stdout
+  runNxServer < .extern.stdin &> .extern.stdout &
+  eval "exec $EXTERN_STDIN>.extern.stdin"
+  eval "exec $EXTERN_STDOUT<.extern.stdout"
+}
+
+tearDown()
+{
+  eval "exec $EXTERN_STDIN>&-"
+  eval "exec $EXTERN_STDOUT<&-"
+  rm -f .extern.*
+}
+
+testPrelim()
+{
+  doPrelim
+}
+
+testLoginCorrectUsernameWrongPassword()
+{
+  setupLoginCorrectUsernameWrongPassword
+
+  doPrelim
+  doLogin
+}
+
+testLoginCorrectUsernameCorrectPassword()
+{
+  setupLoginCorrectUsernameCorrectPassword
+  doPrelim
+  doLogin
+}
+
+testLoginWrongUsername()
+{
+  setupLoginWrongUsername
+  doPrelim
+  doLogin
+}
+
+# Everything after this point probably wants to call doNormalSetup first.
+
+testBlankLine()
+{
+  doNormalSetup
+
+  sendRecvCheck "" "Blank line came back wrong" "NX> 105 "
+}
+
+testListNoSessions()
+{
+  doNormalSetup
+
+  doListNoSessions
+}
+
+testStartSession()
+{
+  doNormalSetup
+
+  doStartSession
+}
+
+# load shunit2
+. ../utility/shunit2

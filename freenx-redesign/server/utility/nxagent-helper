@@ -1,0 +1,365 @@
+#!/usr/bin/python2.4
+#
+# Copyright 2007 Google Inc.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+#
+# Author: diamond@google.com (Stephen Shirley)
+
+"""nxserver program for accepting nx connections.
+
+"""
+
+import os
+import re
+import signal
+import subprocess
+import sys
+import time
+import traceback
+
+sys.path.append('/usr/freenx/lib')
+import nxlog
+import nxloadconfig
+
+prog_name = "nxagent-helper"
+_COMMANDS = ( "start", "resume" )
+state_lines = { 'starting': re.compile(r'^Session: Starting session at '),
+    'running': re.compile(r'^Session: Session (started|resumed) at '),
+    'suspending': re.compile(r'^Session: Suspending session at '),
+    'suspended': re.compile(r'^Session: Session suspended at '),
+    'terminating': re.compile(r'^Session: (Terminat|Abort)ing session at '),
+    'terminated': re.compile(r'^Session: Session (terminat|abort)ed at ')
+  }
+info_lines = { 'watchdog_pid':
+      re.compile(r"^Info: Watchdog running with pid '(?P<pid>\d+)'."),
+    'kill_watchdog':
+      re.compile(r"^Info: Waiting the watchdog process to complete."),
+    'agent_pid':
+      re.compile(r"^Info: Agent running with pid '(?P<pid>\d+)'."),
+    'general_error':
+      re.compile(r"^Error: (?P<error>.*)$")
+  }
+options = {}
+
+
+def main():
+  """Do setup, then read and handle command"""
+
+  basic_setup()
+  handle_command(*read_command()) # Expand the list passed back into two
+                                  # seperate arguments.
+
+
+def basic_setup():
+  """Setup logging, read configuration"""
+
+  nxlog.setup(prog_name)
+  nxlog.log(nxlog.LOG_DEBUG, "started with pid %d\n" % os.getpid())
+  nxloadconfig.setup(prog_name)
+  level = nxloadconfig.conf.get('LOG_LEVEL', '5') # Default to LOG_NOTICE
+  try:
+    nxlog.set_log_level(level)
+  except ValueError:
+    nxlog.log(nxlog.LOG_ERR, "Invalid log level: %s\n" % level)
+  nxlog.log(nxlog.LOG_INFO, "config parsed\n")
+
+
+def read_command():
+  """Read a single command from stdin, check that it's valid, return it."""
+
+  raw_cmd = raw_input()
+  cmd = raw_cmd.split()
+  if len(cmd) < 2:
+    nxlog.log(nxlog.LOG_CRIT, "Command has invalid format: %s\n" %
+        repr(raw_cmd))
+    sys.exit(1)
+  if cmd[0].lower() not in _COMMANDS:
+    nxlog.log(nxlog.LOG_CRIT, "Unknown command given: %s\n" % repr(raw_cmd))
+    sys.exit(1)
+  return cmd[0].lower(), cmd[1]
+
+
+def handle_command(cmd, sessionid):
+  """Handle the commands received."""
+
+  global options
+  nxlog.log(nxlog.LOG_DEBUG, "command: %s %s\n" % (cmd, sessionid))
+  #FIXME: should be using a better, non-hardcoded location
+  if cmd == 'start':
+    nxlog.log(nxlog.LOG_NOTICE, "Starting session %s\n" % sessionid)
+    session_dir = '/tmp/nx/S-%s' % sessionid
+    try:
+      args = [line[:-1] for line in
+          open('/tmp/nx/S-%s/args' % sessionid).readlines()]
+      nxlog.log(nxlog.LOG_NOTICE, "Session args: %s\n" % repr(args))
+
+      # Open the session log to pass to nxagent
+      nxagent_log = open(os.path.join(session_dir, 'session.log'), 'w')
+      options_path = os.path.join(session_dir, 'options')
+      opt_read(options_path)
+    except IOError, e:
+      nxlog.log(nxlog.LOG_ERR, "Session file error: %s\n" % e)
+      sys.exit(1)
+    options['dir'] = session_dir
+    cleanup()
+    os.environ['LD_LIBRARY_PATH'] = '/usr/NX/lib'
+    os.environ['DISPLAY'] = 'nx/nx,options=%s:%s' % \
+        (options_path, options['display_num'])
+    os.environ['X_AUTHORITY'] = os.path.join(session_dir, 'authority')
+    setup_xauth()
+    options['p'] = subprocess.Popen(['/usr/freenx/bin/nxagent'] + args,
+        close_fds=True, stdin=None, stdout=nxagent_log,
+        stderr=subprocess.STDOUT)
+    options['agent_pid'] = options['p'].pid
+    write_agent_pid()
+    nxlog.log(nxlog.LOG_NOTICE, "Spawned nxagent pid %d\n" % options['p'].pid)
+    # Don't want to propogate this to other children.
+    del os.environ['LD_LIBRARY_PATH']
+    os.environ['DISPLAY'] = ':%s' % options['display_num']
+    nxagent_log = open(os.path.join(session_dir, 'session.log'), 'r')
+    follow_log(nxagent_log)
+  elif cmd == 'resume':
+    nxlog.log(nxlog.LOG_NOTICE, "Resuming session %s\n" % sessionid)
+    nxlog.log(nxlog.LOG_CRIT, "Session resumption not yet supported\n")
+    sys.exit(1)
+
+
+def follow_log(log):
+  """Follow and parse the log of nxagent.
+
+  FIXME: Keeps track of the state of nxagent, performs actions on certain
+  state changes.
+  """
+
+  try:
+    nxlog.log(nxlog.LOG_DEBUG, "Following agent log\n")
+    while True:
+      line = log.readline()
+      if not line:
+        if options['p'].poll() is not None:
+          ret = options['p'].returncode
+          if ret < 0:
+            nxlog.log(nxlog.LOG_NOTICE, "Nxagent has exited, "
+                "killed by signal %d\n" % -ret)
+          else:
+            nxlog.log(nxlog.LOG_NOTICE, "Nxagent has exited: %s\n" % ret)
+          break
+        time.sleep(0.5)
+        continue
+      line = line.rstrip() # Remove trailing newline
+      if match_state(line):
+        nxlog.log(nxlog.LOG_DEBUG, "Matched state: %s\n" % line)
+      elif match_info(line):
+        nxlog.log(nxlog.LOG_DEBUG, "Matched info: %s\n" % line)
+  # If any problems occur, we want to cleanup first. When we're done cleaning
+  # up, re-raise the exception.
+  except:
+    nxlog.log(nxlog.LOG_ERR, "Got exception, cleaning up\n")
+    print "NX> 1009 Session status: terminated"
+    cleanup()
+    raise
+
+  nxlog.log(nxlog.LOG_DEBUG, "Finished following agent log\n")
+
+
+def match_state(line):
+  """Try match the given line against a session state
+
+  Return:
+    True: the line matched
+    False: the line didn't match
+  """
+
+  # Faking a static variable
+  old_state = match_state.cur_state = getattr(match_state, 'cur_state', None)
+  if not line.startswith('Session: '):
+    return False
+  for state, rx in state_lines.iteritems():
+    if rx.search(line):
+      match_state.cur_state = state
+      handle_state_change(match_state.cur_state, old_state)
+      return True
+  return False
+
+
+def match_info(line):
+  """Try match the given line against an info line regex
+  
+  Return:
+    True: the line matched
+    False: the line didn't match
+  """
+
+  for info, rx in info_lines.iteritems():
+    m = rx.search(line)
+    if m:
+      handle_info(info, m)
+      return True
+  return False
+
+
+def handle_state_change(cur_state, old_state):
+  """Compare the current state to the previous state, and handle as 
+  appropriate
+  
+  Args:
+    cur_state: current state name
+    old_state: previous state name
+  Return:
+    None
+  """
+
+  if cur_state == old_state:
+    return
+  nxlog.log(nxlog.LOG_NOTICE,"Nxagent state was: %s Now: %s\n" % \
+      (old_state, cur_state))
+  print "NX> 1009 Session status: %s" % cur_state
+  sys.stdout.flush()
+  if cur_state == 'starting' and old_state is None:
+    start_app()
+  elif cur_state == 'terminated' and old_state != 'terminated':
+    nxlog.log(nxlog.LOG_NOTICE, "Nxagent finished, cleaning up")
+    cleanup()
+
+
+def handle_info(info, m):
+  """Execute the required response to a given info line match
+  
+  Args:
+    info: The id of the info line
+    m: The match object from the info line's regex
+  Return:
+    None
+  """
+
+  if info == 'watchdog_pid':
+    options['watchdog_pid'] = int(m.group('pid'))
+    nxlog.log(nxlog.LOG_NOTICE, "matched info watchdog, pid %s\n" %
+        options['watchdog_pid'])
+  elif info == 'agent_pid':
+    real_agent_pid = int(m.group('pid'))
+    nxlog.log(nxlog.LOG_NOTICE, "matched info agent_pid, pid %s\n" %
+        real_agent_pid)
+    if options['agent_pid'] != real_agent_pid:
+      # Probably caused by nxagent being a shell script
+      nxlog.log(nxlog.LOG_WARNING, "Agent pid (%s) doesn't match "
+          "spawned pid (%s)\n" % (options['agent_pid'], real_agent_pid))
+      options['agent_pid'] = real_agent_pid
+      write_agent_pid()
+  elif info == 'kill_watchdog':
+    if 'watchdog_pid' not in options:
+      nxlog.log(nxlog.LOG_ERR, "matched info kill_watchdog, "
+          "but no known watchdog pid\n")
+    else:
+      try:
+        os.kill(options['watchdog_pid'], signal.SIGTERM)
+      except OSError, (errno, strerror):
+        nxlog.log(nxlog.LOG_WARNING, "matched info kill_watchdog, "
+            "got error from kill[%d]: %s\n" % (errno, strerror))
+      else:
+        nxlog.log(nxlog.LOG_NOTICE, "matched info kill_watchdog, sent TERM.\n")
+  elif info == 'general_error':
+    nxlog.log(nxlog.LOG_ERR, "Agent error: %s" % m.group('error'))
+  else:
+    # If none of the above handers match...
+    nxlog.log(nxlog.LOG_ERR, "matched info %s, but failed to "
+        "find handler for it\n" % info)
+
+
+def opt_read(opt_path):
+  """Parse the nxagent options file into a dict."""
+
+  global options
+  options = {}
+  #FIXME: this needs to be much more robust
+  opt_str = open(opt_path).read().rstrip()
+  opt_str, options['display_num'] = opt_str.rsplit(':', 1)
+  for pair in opt_str.split(','):
+    if pair == 'nx/nx': continue
+    name, val = pair.split('=')
+    options[name] = val
+
+
+def setup_xauth():
+  """Setup Xauthority file using session cookie."""
+
+  global options
+  os.system('xauth add localhost:%(display_num)s MIT-MAGIC-COOKIE-1 '
+      '%(cookie)s &> $X_AUTHORITY.log' % options)
+  os.system('xauth add :%(display_num)s MIT-MAGIC-COOKIE-1 %(cookie)s' % \
+      options)
+
+
+def start_app():
+  """Start the session application (startkde/gnome-session/etc)."""
+
+  global options
+  if options['type'] in ('gnome', 'kde'):
+    app = nxloadconfig.conf['COMMAND_START_%s' % options['type'].upper()]
+  elif options['type'] == 'application':
+    app = options['application']
+  assert(app) #FIXME(diamond): handle this better
+  cmd = 'nxstart %d %s &' % (options['agent_pid'], app)
+  nxlog.log(nxlog.LOG_INFO, "Nxagent ready, launching app: %s" % cmd)
+  log = open(os.path.join(options['dir'], 'app.log'), 'w')
+  s = subprocess.Popen(cmd, shell=True, close_fds=True,
+      stdin=None, stdout=log, stderr=subprocess.STDOUT)
+  options['app_pid'] = s.pid
+  #FIXME(diamond): check for errors here
+
+
+def cleanup():
+  """Cleanup after various things (X11 locks etc)."""
+
+  global options
+
+  for proc in 'watchdog', 'agent', 'app':
+    pid_name = "%s_pid" % proc
+    if pid_name in options:
+      try:
+        os.kill(options[pid_name], signal.SIGTERM)
+      except OSError, (errno, strerror):
+        nxlog.log(nxlog.LOG_WARNING, "Cleanup handler got error %d when "
+            "killing %s: %s\n" % (errno, proc, strerror))
+      else:
+        nxlog.log(nxlog.LOG_WARNING, "Cleanup handler sent TERM to %s\n" % proc)
+
+  for f in ['/tmp/.X%(display_num)s-lock' % options,
+    '/tmp/.X11-unix/X%(display_num)s' % options]:
+      if os.path.exists(f):
+        os.remove(f)
+
+
+def write_agent_pid():
+  """Send the agent pid to nxserver-inner"""
+
+  global options
+  sys.stdout.write('NX> 8888 agentpid: %s\n' % options['agent_pid'])
+  sys.stdout.flush()
+
+
+if __name__ == '__main__':
+  try:
+    main()
+  except SystemExit, e:
+    sys.exit(e.code)
+  except Exception, e:
+    trace = traceback.format_exc()
+    nxlog.log(nxlog.LOG_ERR, 'Going down because exception caught '
+                             'at the top level.')
+    for line in trace.split('\n'):
+      nxlog.log(nxlog.LOG_ERR, '%s' % line)
+    sys.exit(1)

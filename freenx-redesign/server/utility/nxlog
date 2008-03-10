@@ -1,12 +1,24 @@
 #!/bin/bash
 
+# Copyright 2007 Google Inc.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+#
 # nxlog - Provides functions for logging to syslog
 #
-# Copyright 2007 Google Inc.
-# All Rights Reserved.
-# Author: diamond@google.com (Stephen Shirley)
-#
-# License: GNU GPL, version 2
+# Author: alriddoch@google.com (Alistair Riddoch)
 #
 # Used configuration keys:
 #
@@ -20,7 +32,8 @@
 #
 # Used external programs:
 #
-# @ext logger - a shell command interface to the syslog(3) system log module
+# @ext log4sh - a shell logging library interface with support for the
+#               syslog(3) system log module
 #
 # Accepted protocol requests from client:
 #
@@ -31,81 +44,119 @@
 # SVN: $Id$
 #
 
-LOG_EMERG=0
-LOG_ALERT=1
-LOG_CRIT=2
-LOG_ERR=3
-LOG_WARNING=4
-LOG_NOTICE=5
-LOG_INFO=6
-LOG_DEBUG=7
+_NXLOG_LOG_EMERG=0
+_NXLOG_LOG_ALERT=1
+_NXLOG_LOG_CRIT=2
+_NXLOG_LOG_ERR=3
+_NXLOG_LOG_WARNING=4
+_NXLOG_LOG_NOTICE=5
+_NXLOG_LOG_INFO=6
+_NXLOG_LOG_DEBUG=7
 
+_nxlog_log_level_2_log4sh()
+{
+	local def_lev="INFO"
+	case "$1" in
+		$_NXLOG_LOG_EMERG|EMERG) echo FATAL ;;
+		$_NXLOG_LOG_ALERT|ALERT) echo FATAL ;;
+		$_NXLOG_LOG_CRIT|CRIT) echo ERROR ;;
+		$_NXLOG_LOG_ERR|ERR) echo ERROR ;;
+		$_NXLOG_LOG_WARNING|WARNING) echo WARN ;;
+		$_NXLOG_LOG_NOTICE|NOTICE) echo INFO ;;
+		$_NXLOG_LOG_INFO|INFO) echo INFO ;;
+		$_NXLOG_LOG_DEBUG|DEBUG) echo DEBUG ;;
+		*)
+			nxlog_log ERR "_nxlog_log_level_2_log4sh: Invalid log level \"$1\", defaulting to \"$def_lev\""
+			echo "$def_lev"
+		;;
+	esac
+}
 
-log()
+_nxlog_set_log_level()
+{
+	logger_setLevel `_nxlog_log_level_2_log4sh $LOG_LEVEL`
+}
+
+_nxlog_import_log4sh()
+{
+	# If the library is already imported, return.
+	[ -n "${__LOG4SH_VERSION:-}" ] && return
+
+	# Look for the library in our current location
+	_NXLOG_LOG4SH="$(cd $(dirname $1) && pwd -L)/log4sh"
+
+	# If it is not there, look for it on the PATH
+	[ -f "$_NXLOG_LOG4SH" ] || _NXLOG_LOG4SH='log4sh'
+
+	# Source the library with no configuration
+	LOG4SH_CONFIGURATION='none' . $_NXLOG_LOG4SH
+}
+
+_nxlog_setup_log4sh()
+{
+	# Import the log4sh library if necessary
+	_nxlog_import_log4sh "$1"
+	# Reset the configuration
+	log4sh_resetConfiguration
+
+	# Set the level up for INFO by default
+	[ -n "${LOG_LEVEL:-}" ] || LOG_LEVEL=$_NXLOG_LOG_INFO
+
+	# Set the log level
+	_nxlog_set_log_level
+
+	# Set up the syslog as the only appender
+	logger_addAppender syslog
+	logger_setFilename "$SCRIPT_NAME"
+	appender_setType syslog SyslogAppender
+	appender_syslog_setFacility syslog daemon
+
+  # Allow tests etc to setup extra logging
+  if declare -f "${setup_extra_logging:-}" &>/dev/null; then
+    "$setup_extra_logging"
+  fi
+}
+
+nxlog_log()
 {
 	PRIORITY="$1"
-	if [ "$LOG_LEVEL" -ge "$PRIORITY" ]
+	if [ "$#" -le "1" ]
 	then
-		shift
-		[ "$1" = "-n" ] && shift
-		ARGS="$@"
-		[ -n "$ARGS" ] || ARGS="No arguments supplied to log()"
-		logger -p "syslog.$PRIORITY" -t "$SCRIPT_NAME" -- "$ARGS"
+		return
 	fi
+	shift
+	log `_nxlog_log_level_2_log4sh $PRIORITY` "$@"
 }
 
-
-log_tee()
+nxlog_log_pipe()
 {
 	PRIORITY="$1"
-	while read -r; do
-		[ -n "$REPLY" ] && log "$PRIORITY" "$REPLY"
-		echo "$REPLY"
-	done
-}
-
-
-echo_x()
-{
-	echo "$@"
-	case "$NX_LOG_PROG" in
-		"nxserver") prefix="(s>c)" ;;
-		"nxnode") prefix="(n>s)" ;;
-		*) prefix="(?>?)" ;;
-	esac
-        log $LOG_INFO "$prefix $@"
-}
-
-
-read_x()
-{
-	read -t 10 "$@"
-	case "$NX_LOG_PROG" in
-		"nxserver") prefix="(s<c)" ;;
-		"nxnode") prefix="(n<s)" ;;
-		*) prefix="(?<?)" ;;
-	esac
-        log $LOG_INFO "$prefix $REPLY"
-}
-
-
-read_x_prompt() 
-{
-	echo_x -n "$1"
-	shift
-	read_x "$@"
-}
-
-
-if [ "$#" = "0" -a "$SCRIPT_NAME" = "nxlog" ]
-then
 	while read
 	do
-		log $line # no "" here to have it split up in different levels
+		nxlog_log "$PRIORITY" ${NXLOG_LOG_PIPE_PREFIX:-} $REPLY
 	done
+}
+
+[ -n "${SCRIPT_NAME:-}" ] || SCRIPT_NAME="$(basename $0)"
+
+_nxlog_setup_log4sh "$0"
+
+if [ "$#" -le "1" ]
+then
+	# If we are being run rather than sourced, read log data in from
+	# stdin.
+	if [ "$SCRIPT_NAME" = "nxlog" ]
+	then
+		if [ "$#" = "1" ]; then
+			PRIORITY="$1"
+			shift
+		else
+			PRIORITY=INFO
+		fi
+
+		nxlog_log_pipe "$PRIORITY"
+	fi
 else
-	log "$@"
+	# If we are being run with arguments, log using the arguments.
+	nxlog_log "$@"
 fi
-
-
-# vim: ts=8 noexpandtab sw=8 softtabstop=0

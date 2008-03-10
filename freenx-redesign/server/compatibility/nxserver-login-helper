@@ -58,6 +58,14 @@
 # SVN: $Id$
 #
 
+## Uncomment for debugging:
+#exp_internal 1
+
+#Log the interaction to a fifo, and not to stdout.
+catch {set helper_log_fifo $env(SERVER_LOGIN_HELPER_LOG)}
+log_file -a -noappend $helper_log_fifo
+log_user 0
+
 set auth_method [lindex $argv 0]
 set user [lindex $argv 1]
 set executable [lindex $argv 2]
@@ -69,14 +77,14 @@ catch {set command_login $env(NODE_HOOK_LOGIN)}
 set command_netcat "netcat"
 catch {set command_netcat $env(COMMAND_NETCAT)}
 set host "127.0.0.1"
-set timeout 2
+set timeout 20
 
 #
 # Special test-nx instruction for nxsetup
 #
 
 if { "$auth_method"=="test-nx" } {
-	set stty_init "raw icrnl -echo"
+	set stty_init "raw -echo"
 
 	set publickey ""
 	catch {set publickey $env(NODE_PUBLICKEY)}
@@ -85,10 +93,10 @@ if { "$auth_method"=="test-nx" } {
 	expect {
 		timeout { exit 1 }
 		eof { exit 1 }
-		"Are you sure you want to continue connecting (yes/no)?" { send "yes\r"; exp_continue }
+		"Are you sure you want to continue connecting (yes/no)?" { send "yes\n"; exp_continue }
 		"Permission denied*" { exit 1 }
 		"HELLO NXSERVER - Version" { 
-			expect "NX> 105" { send "quit\r" }
+			expect "NX> 105" { send "quit\n" }
 			expect "NX> 999 Bye" { exit 0 }
 		}
 	}
@@ -101,8 +109,8 @@ if { "$auth_method"=="test-nx" } {
 
 set password ""
 catch {set password $env(NODE_PASSWORD)}
-
-set stty_init "raw icrnl -echo"
+set env(NODE_PASSWORD) ""
+set stty_init "raw -echo"
 
 if { "$auth_method"!="test-nx" } {
 	set pid [ spawn -noecho $command_login "$auth_method" "$user" "$executable" "$parameters" ]
@@ -113,11 +121,17 @@ if { "$auth_method"!="test-nx" } {
 expect {
 	timeout { exit 1 }
 	eof { exit 1 }
-	"Are you sure you want to continue connecting (yes/no)?" { send "yes\r"; exp_continue }
-	"assword*:"  { sleep 0.3; send "$password\r"; set password ""; exp_continue }
+	"Are you sure you want to continue connecting (yes/no)?" { send "yes\n"; exp_continue }
+	"assword*:"  { sleep 0.3; send "$password\n"; set password ""; exp_continue }
 	"Permission denied*" { exit 1 }
 	"su: Authentication failure" { exit 1 }
-	"NX> 103" {
+	"Unknown id:*" { exit 1 }
+	-notransfer "NX> 103*" {
+		# Stop logging to stderr:
+		log_file
+		send_user "$expect_out(buffer)"
+		# Send all output to the user:
+		log_user 1
 		set redir "0"
 		interact {
 			-o "FREENX> 100 " {

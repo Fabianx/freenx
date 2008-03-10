@@ -1,0 +1,211 @@
+#!/bin/bash
+#
+# Copyright 2007 Google Inc.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+#
+# Author: diamond@google.com (Stephen Shirley)
+
+oneTimeSetUp()
+{
+  # This unit test may need to be run while installed.
+  . "./include/test-functions.inc" && setupLoadConfig
+  echo "NX_VERSION=3.0.0" >> "$PATH_ETC/general.conf"
+  NX_PROMPT="NX> 105 "
+  NX_SERVER_BANNER_REGX='^HELLO NXSERVER - Version [^[:blank:]]+ .*$'
+  LOGIN_ERROR_REPLY="NX> 404 ERROR: WRONG PASSWORD OR LOGIN."
+}
+
+setUp()
+{
+  cd "$TEST_DIR"
+}
+
+runPrep()
+{
+  cmd="$1"
+  shift
+  rm -f .extern.*
+  mkfifo .extern.stdin
+  mkfifo .extern.stdout
+  "$cmd" "$@" < .extern.stdin &> .extern.stdout &
+  eval "exec $EXTERN_STDIN>.extern.stdin"
+  eval "exec $EXTERN_STDOUT<.extern.stdout"
+}
+
+runCleanup()
+{
+  eval "exec $EXTERN_STDIN>&-"
+  eval "exec $EXTERN_STDOUT<&-"
+  rm -f .extern.*
+}
+
+# Tests that check output of running nxserver script need to be in this section
+testBanner()
+{
+  runPrep nxserver-login
+  recvCheckRegx 'Banner' "$NX_SERVER_BANNER_REGX"
+  eval "exec $EXTERN_STDIN>&-"
+  recvCheck 'Prompt' "$NX_PROMPT"
+  recvCheck 'Bye' 'NX> 999 Bye.'
+  runCleanup
+}
+
+# Tests that check output of running nxserver need to be BEFORE this line
+
+testSourceNxserver()
+{
+  UNITTESTING="1"
+  . bin/nxserver-login
+  nxloadconfig_main
+
+  assertEquals "Sourcing nxserver" "0" "$?"
+}
+
+testConfig_check()
+{
+  NXSERVER_LOGIN_HOOK_LOGIN_USER="/etc/fstab"
+  config_check
+  assertNull "config_check doesn't nuke invalid \
+    \$NXSERVER_LOGIN_HOOK_LOGIN_USER value" "$NXSERVER_LOGIN_HOOK_LOGIN_USER"
+
+  NXSERVER_LOGIN_HOOK_LOGIN_USER="doesn'texist"
+  config_check
+  assertEquals "config_check doesn't change invalid \
+    \$NXSERVER_LOGIN_AUTHENTICATION_METHOD to 'su'" "su" \
+    "$NXSERVER_LOGIN_AUTHENTICATION_METHOD"
+}
+
+mainTestSetup()
+{
+  runPrep nxserver-login_main
+  recvCheckRegx 'Banner' "$NX_SERVER_BANNER_REGX"
+}
+
+mainTestTearDown()
+{
+  runCleanup
+}
+
+testNxserverlogin_main()
+{
+  mainTestSetup
+  eval "exec $EXTERN_STDIN>&-"
+  recvCheck 'Immediate-quit prompt' "$NX_PROMPT"
+  recvCheck 'Immediate-quit bye' 'NX> 999 Bye.'
+
+  for i in quit exit bye; do
+    mainTestSetup
+    sendRecvCheck "$i" "$i came back wrong" "${NX_PROMPT}$i"
+    recvCheck "$i bye" 'NX> 999 Bye.'
+    mainTestTearDown
+  done
+}
+
+testConfigCommands()
+{
+  local VER TYPE
+
+  mainTestSetup
+    VER="testing testing"
+    SEND="hello nxclient - version $VER"
+    sendRecvCheck "$SEND" "Hello came back wrong" "${NX_PROMPT}$SEND"
+    recvCheck "Client hello reply wrong" "NX> 134 Accepted protocol: $VER"
+
+    TYPE="password"
+    SEND="set auth_mode $TYPE"
+    sendRecvCheck "$SEND" "Valid auth mode came back wrong" \
+      "${NX_PROMPT}set auth_mode: $TYPE"
+    TYPE="somethingelse"
+    SEND="set auth_mode $TYPE"
+    sendRecvCheck "$SEND" "Invalid auth mode came back wrong" \
+      "${NX_PROMPT}set auth_mode: $TYPE"
+    recvCheck "Invalid auth mode accepted" "NX> 500 ERROR: unknown auth mode ''"
+  mainTestTearDown
+}
+
+testLoginWrongUsername()
+{
+  local DESC NXUSERNAME NXPASSWORD
+
+  mainTestSetup
+    sendRecvCheck "login" "Login came back wrong" "${NX_PROMPT}login"
+    DESC="Wrong username"
+    NXUSERNAME="nxfail"
+    NXPASSWORD="haha.no."
+    sendRecvCheck "$NXUSERNAME" "$DESC - username came back wrong" \
+      "NX> 101 user: $NXUSERNAME"
+    sendRecvCheckRegx "$NXPASSWORD" "$DESC - password came back wrong" \
+      '^NX> 102 password: \**$'
+    recvCheck "$DESC - login succeded when it shouldn't" "$LOGIN_ERROR_REPLY"
+    recvCheck "$DESC bye" 'NX> 999 Bye.'
+  mainTestTearDown
+}
+
+testLoginRightUsernameWrongPassword()
+{
+  local DESC NXUSERNAME NXPASSWORD
+
+  mainTestSetup
+    sendRecvCheck "login" "Login came back wrong" "${NX_PROMPT}login"
+    DESC="Correct username, wrong password"
+    NXUSERNAME="nxtest"
+    NXPASSWORD="haha.no."
+    sendRecvCheck "$NXUSERNAME" "$DESC - username came back wrong" \
+      "NX> 101 user: $NXUSERNAME"
+    sendRecvCheckRegx "$NXPASSWORD" "$DESC - password came back wrong" \
+      '^NX> 102 password: \**$'
+    recvCheck "$DESC - login succeded when it shouldn't" "$LOGIN_ERROR_REPLY"
+    recvCheck "$DESC bye" 'NX> 999 Bye.'
+  mainTestTearDown
+}
+
+testLoginRightUsernameRightPassword()
+{
+  local DESC NXUSERNAME NXPASSWORD
+
+  mainTestSetup
+    sendRecvCheck "login" "Login came back wrong" "${NX_PROMPT}login"
+    DESC="Correct username, correct password"
+    NXUSERNAME="nxtest"
+    NXPASSWORD="haha.yes."
+    sendRecvCheck "$NXUSERNAME" "$DESC - username came back wrong" \
+      "NX> 101 user: $NXUSERNAME"
+    sendRecvCheckRegx "$NXPASSWORD" "$DESC - password came back wrong" \
+      "NX> 102 password: \**"
+    recvCheck "$DESC - missing mysterious blank line" " " #FIXME - dunno where this comes from
+    recvCheck "$DESC - login failed when it shouldn't" \
+      "NX> 103 WELCOME TO: $HOSTNAME USER: $NXUSERNAME"
+
+  mainTestTearDown
+}
+
+testTimeout() {
+  local before after delay
+  READ_X_TIMEOUT=4
+  before=$(date +%s)
+  mainTestSetup
+
+    recvCheck 'Immediate-quit prompt' "$NX_PROMPT"
+    recvCheck 'Immediate-quit bye' 'NX> 999 Bye.'
+    after=$(date +%s)
+    delay=$((after - before))
+    assertTrue 'Immediate-quit timeout' '[ $delay -ge $READ_X_TIMEOUT ]'
+
+  mainTestTearDown
+  unset READ_X_TIMEOUT
+}
+
+. ../utility/shunit2

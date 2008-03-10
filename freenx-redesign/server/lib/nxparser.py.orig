@@ -1,0 +1,588 @@
+#!/usr/bin/python
+#
+# Copyright 2007 Google Inc. All Rights Reserved.
+#
+# $Id: $
+# $Author: $
+# $Date: $
+
+"""nxparser module for handling the nx protocol.
+"""
+
+import os
+import optparse
+import re
+import socket
+import subprocess
+import sys
+import termios
+import time
+import traceback
+
+import nxlog
+
+__author__ = 'alriddoch@google.com (Alistair Riddoch)'
+__version__ = '$Revision: #1 $'
+__copyright__ = 'Copyright 2007 Google Inc. All rights reserved.'
+
+
+class base_parser:
+  """Base parser for NX protocol parsers.
+
+  This class handles breaking up the messages into components,
+  and dispatching them.
+  """
+
+  DEFAULT_VERSION = '3.0.0'
+  DEFAULT_PROGRAM = 'NXBASE'
+
+  NX_PROMPT = 'NX>'
+  NX_COMMANDS = ['hello', 'login', 'bye', 'set', 'listsession',
+                 'restoresession', 'startsession', 'terminate']
+
+  def __init__(self, input, output, version=DEFAULT_VERSION,
+               program=DEFAULT_PROGRAM):
+    """base_parser constructor
+
+    Args:
+      input: The file object to read parser input from.
+      output: The file object to write the results to.
+      version: The version string used to negotiate the protocol.
+      program: The program name used in the protocol banner.
+    """
+
+    self.input = input
+    self.output = output
+    self.state = 105
+    self.running = True
+    self.parse_args(version=version, program=program)
+    nxlog.log(nxlog.LOG_DEBUG, "Version: %s Program: %s" %
+        (self.version, self.program))
+
+  def banner(self):
+    """Write the protocol banner to the output."""
+
+    self.write('HELLO %s - Version %s - GPL' % (self.program, self.version))
+
+  def prompt(self, state, message='', override_newline=None):
+    """Write the protocol prompt to the output."""
+
+    newline = False
+    if override_newline is not None:
+      newline = override_newline
+    elif message:
+      newline=True
+    self.write('%s %d %s' % (self.NX_PROMPT, state, message), newline=newline)
+
+  def loop(self):
+    """Write the protocol prompt to the output, and accept commands."""
+
+    try:
+      while self.running:
+        self.prompt(self.state)
+        line = self.input.readline().rstrip()
+        if not line:
+          return
+        nxlog.log(nxlog.LOG_DEBUG, 'Got %r' % line)
+        command = line.split()
+        if not command:
+          # If the line was all whitespace this could happen.
+          continue
+        cmd = command[0].lower()
+        if cmd == 'set':
+          self.write("%s %s: %s" % (cmd.capitalize(), command[1].lower(), command[2].lower()))
+        elif cmd == 'startsession':
+          self.write("Start session with: %s" % " ".join(command[1:]))
+        else:
+          self.write(line.capitalize())
+        if cmd not in self.NX_COMMANDS:
+          self.prompt(503, 'Error: undefined command: \'%s\'' % cmd)
+          continue
+        handler_name = '_nx_%s_handler' % cmd
+        try:
+          handler_method = getattr(self, handler_name)
+        except AttributeError:
+          nxlog.log(nxlog.LOG_DEBUG, 'Unhandled nx command %r' % cmd)
+          continue
+        handler_method(command)
+    except IOError, e:
+      nxlog.log(nxlog.LOG_ERR, 'IOError. Connection lost.')
+    except Exception, e:
+      trace = traceback.format_exc()
+      nxlog.log(nxlog.LOG_ERR, 'Going down because exception caught '
+                               'at the top level.')
+      for line in trace.split('\n'):
+        nxlog.log(nxlog.LOG_ERR, '%s' % line)
+
+  def write(self, output, newline=True, flush=True, log=True,
+      log_level=nxlog.LOG_DEBUG, fd=None):
+    """Write given string to output, and optionally:
+      - append a newline
+      - flush output afterwards
+      - log the output, with a specified log level."""
+
+    if newline:
+      output += '\n'
+    use_fd = self.output
+    if fd:
+      use_fd = fd
+    use_fd.write(output)
+    if flush:
+      use_fd.flush()
+    if log:
+      nxlog.log(log_level, 'Sent: %r' % output)
+
+  def parse_args(self, version=None, program=None):
+    """Parse cmdline arguments"""
+    parser = optparse.OptionParser()
+    parser.add_option("--proto", action="store", type="string",
+        dest="version", default=version, metavar="PROTO_VER",
+        help="use the PROTO_VER version of the NX protocol")
+    parser.add_option("--program", action="store", type="string",
+        dest="program", default=program, metavar="PROG_NAME",
+        help="the PROG_NAME name to announce")
+    options, args = parser.parse_args()
+    self.version = options.version
+    self.program = options.program
+
+
+
+class node_parser(base_parser):
+  """Node parser for NX protocol
+
+  This class handles the NX protocl messages requires by a node.
+  """
+
+  DEFAULT_PROGRAM = 'NXNODE'
+
+  def __init__(self, input, output, version=base_parser.DEFAULT_VERSION,
+               program=DEFAULT_PROGRAM):
+    """server_parser constructor
+
+    Args:
+      input: The file object to read parser input from.
+      output: The file object to write the results to.
+      version: The version string used to negotiate the protocol.
+      program: The program name used in the protocol banner.
+    """
+    base_parser.__init__(self, input, output, version=version, program=program)
+
+  def banner(self):
+    """Write the protocol banner to the output."""
+
+    self.prompt(1000, '%s - Version %s' % (self.program.upper(), self.version))
+
+  def _nx_startsession_handler(self, command):
+    p = subprocess.Popen('/usr/freenx/bin/nxagent-helper',
+                         stdin=subprocess.PIPE,
+                         stdout=subprocess.PIPE,
+                         stderr=subprocess.STDOUT,
+                         shell=True)
+    p.stdin.write('start %s-1116-DA49F2B8F86161BAD68B5349D63AC1D3\n' %
+        socket.getfqdn().lower())
+    p.stdin.flush()
+    nxlog.log(nxlog.LOG_DEBUG, 'Starting session')
+    child_status = p.wait()
+    if child_status != 0:
+      lines = p.stdout.readlines()
+      if not lines:
+        out_msg = ", no output printed"
+      else:
+        out_msg = ", with %d lines of output (shown below):" % len(lines)
+      nxlog.log(nxlog.LOG_ERR, 'Start session failed %d%s' %
+          (child_status, out_msg))
+      for line in lines:
+        nxlog.log(nxlog.LOG_ERR, 'from nxagent-helper: %s' % line)
+      self.prompt(500, 'Error: Startsession failed')
+      return
+    nxlog.log(nxlog.LOG_ERR, 'Session completed %d' % child_status)
+    self.running = False
+
+  def _nx_resumesession_handler(self, command):
+    nxlog.log(nxlog.LOG_DEBUG, 'Resuming session')
+
+
+class server_parser(base_parser):
+  """Server parser for NX protocol.
+
+  This class handles the NX protocol messages required by a server.
+  """
+
+  DEFAULT_PROGRAM = 'NXSERVER'
+
+  STATUS_CONNECTED, \
+  STATUS_LOGGEDIN = range(2)
+
+  SET_ACCEPTED_VARIABLES = ['AUTH_MODE', 'SHELL_MODE']
+
+  LISTSESSION_ACCEPTED_PARAMETERS = ['user', 'status', 'geometry', 'type']
+  LISTSESSION_COLUMNS_HEADER = "Display Type             Session ID                       Options  Depth Screen         Status      Session Name"
+  LISTSESSION_COLUMNS_DASHES = "------- ---------------- -------------------------------- -------- ----- -------------- ----------- ------------------------------"
+
+  STARTSESSION_ACCEPTED_PARAMETERS = [ 'backingstore', 'cache', 'client',
+                                       'composite', 'encryption', 'geometry',
+                                       'images', 'keyboard', 'link',
+                                       'media', 'screeninfo' 'session',
+                                       'shmem', 'shpix', 'strict', 'type', ]
+
+  def __init__(self, input, output, version=base_parser.DEFAULT_VERSION,
+               program=DEFAULT_PROGRAM):
+    """server_parser constructor
+
+    Args:
+      input: The file object to read parser input from.
+      output: The file object to write the results to.
+      version: The version string used to negotiate the protocol.
+      program: The program name used in the protocol banner.
+    """
+    base_parser.__init__(self, input, output, version=version, program=program)
+
+    username = os.getenv('NX_TRUSTED_USER')
+    
+    if username:
+      self.status = self.STATUS_LOGGEDIN
+      self.username = username
+    else:
+      self.status = self.STATUS_CONNECTED
+
+    commfd = os.getenv('NX_COMMFD')
+
+    if commfd:
+      self.nxnode_commfd = int(commfd)
+      self.nxnode_rfile = os.fdopen(self.nxnode_commfd, 'r')
+      self.nxnode_wfile = os.fdopen(self.nxnode_commfd, 'w')
+      nxlog.log(nxlog.LOG_DEBUG, 'Got commfd %d' % self.nxnode_commfd)
+
+  def banner(self):
+    """Write the protocol banner to the output."""
+
+    if self.status == self.STATUS_LOGGEDIN:
+      assert(hasattr(self, 'username'))
+      self.prompt(103, 'Welcome to: %s user: %s' % (socket.getfqdn().lower(),
+                                                      self.username))
+    else:
+      self.write('HELLO %s - Version %s - GPL' % (self.program, self.version))
+
+  def _nx_bye_handler(self, command):
+    """Handle the bye NX command.
+
+    'bye' signals the end of a commandline session. Currently it is ignored
+    as the other end typically closes the connection, causing termination.
+    It may be a good idea to explicitly exit.
+
+    Args:
+      command: The NX command and arguments invoked
+
+    Returns:
+      None
+    """
+
+    # Basic checking of the right status
+    if self.status < self.STATUS_LOGGEDIN:
+      self.prompt(554, 'Error: the command \'bye\' cannot be called before login')
+      return
+    try:
+      self.prompt(999, 'Bye.')
+    except:
+      pass #DEBUG: don't do this..
+    os.execve("/bin/netcat", ["netcat", "localhost", "5116"], {})
+
+  def _nx_hello_handler(self, command):
+    """Handle the hello NX command.
+
+    'hello' is used to handshake the commandline session, and appears to
+    support negotiation of the protocol version. We currently only
+    accept versions which look like 3.x.x, matched using a regex.
+
+    Args:
+      command: The NX command and arguments invoked
+
+    Returns:
+      None
+    """
+
+    # Basic checking of the right status
+    if self.status >= self.STATUS_LOGGEDIN:
+      self.prompt(554, 'Error: the command \'hello\' cannot be called after login')
+      return
+    if len(command) < 5:
+      nxlog.log(nxlog.LOG_DEBUG, 'Hello too short')
+      return
+    if not re.match('^3(\.[0-9]+(\.[0-9]+))', command[4]):
+      nxlog.log(nxlog.LOG_DEBUG, 'Version too fucked')
+      self.prompt(552, 'Protocol you requested is not supported')
+      return
+    self.prompt(134, 'Accepted protocol: %s' % command[4])
+
+  def _nx_login_handler(self, command):
+    """Handle the login NX command.
+
+    'login' is used to start the process of authenticating to NX. The username
+    and password is send in response to requests from the server. If no
+    options have been set, nxserver will ask for the password, and will then
+    ask for an 'MD5 Password' if no password is given. If
+    'SET AUTH_MODE PASSWORD' has been sent by the client, it does not do this
+     however. This code currently never requests the MD5 Password. It is
+    possible that making use of this feature requires storing the users
+    password and verifying it with the hash.
+
+    Args:
+      command: The NX command and arguments invoked
+
+    Returns:
+      None
+    """
+
+    # Basic checking of the right status
+    if self.status >= self.STATUS_LOGGEDIN:
+      self.prompt(554, 'Error: the command \'login\' cannot be called after login')
+      return
+    self.prompt(101, 'User: ', override_newline=False)
+    line = self.input.readline()
+    split_line = line.split()
+    if not line or len(split_line) != 1:
+      self.prompt(500, 'Error: Username is not in expected format')
+      return
+    self.write('') # Print newline after username
+    self.username = split_line[0]
+    nxlog.log(nxlog.LOG_DEBUG, 'Got user %r' % self.username)
+    self.prompt(102, 'Password: ', override_newline=False)
+
+    fd = self.input.fileno()
+    nxlog.log(nxlog.LOG_DEBUG, 'Got fd %r' % fd)
+    # Save the terminal settings
+    try:
+      old = termios.tcgetattr(fd)
+      new = old[:]
+
+      # Disable the echo flag
+      new[3] = new[3] & ~termios.ECHO # 3 == 'lflags'
+      try:
+        termios.tcsetattr(fd, termios.TCSADRAIN, new)
+        passwd = self.input.readline()
+      finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+    except termios.error:
+      passwd = self.input.readline()
+
+    nxlog.log(nxlog.LOG_DEBUG, 'Got a passwd')
+
+    self.write('\n')
+    # FIXME ssh to localhost to verify the username and password are correct.
+    # FIXME store the authentication information we need in a secure way.
+    del passwd
+    self.status = self.STATUS_LOGGEDIN
+    self.banner()
+
+  def _nx_set_handler(self, command):
+    """Handle the SET NX command.
+
+    'SET' is used to configure the session in various ways. Two variables
+    have been seen.
+    'SET SHELL_MODE SHELL' has no known effect.
+    'SET AUTH_MODE PASSWORD' prevents nxserver fromm asking for an MD5
+    password if no password has been given.
+
+    Args:
+      command: The NX command and arguments invoked
+
+    Returns:
+      None
+    """
+    if len(command) < 2:
+      self.prompt(500, 'Error: missing parameter \'variable\'')
+      return
+    var = command[1].upper()
+    if var not in self.SET_ACCEPTED_VARIABLES:
+      self.prompt(500, 'Error: unknown variable \'%s\'' % var)
+      return
+      
+  def _nx_listsession_handler(self, command):
+    """Handle the listsession NX command.
+
+    'listsession' requests a table of session information for the current
+    user. It requires parameters be specified. The following parameters have
+    been seen.
+    '--user="alriddoch"'
+    This seems to be ignored. No matter what is specified, the user given at
+    login is used.
+    '--status="suspended,running"'
+    This seems to constrain the list to sessions in the given states.
+    '--geometry="3840x1200x24+render"'
+    This seems to specify the desired geometry.
+    '--type="unix-gnome"'
+    This seems to specify the desired type.
+    The format of the returned data is somewhat freeform, and looks hard to
+    parse. Currently this function returns an empty table, which forces the
+    the client to always start a new session
+
+    Args:
+      command: The NX command and arguments invoked
+
+    Returns:
+      None
+    """
+
+    # Basic checking of the right status
+    if self.status < self.STATUS_LOGGEDIN:
+      self.prompt(554, 'Error: the command \'listsession\' cannot be called before login')
+      return
+    # Make sure the state is consistent
+    assert(hasattr(self, 'username'))
+    # Ask for parameters if none have been given
+    if len(command) > 1:
+      parameters = command[1:]
+    else:
+      self.prompt(106, 'Parameters: ', override_newline=False)
+      response = self.input.readline()
+      self.write('') # Do newline after parameters.
+      parameters = response.split()
+    # Check the parameters fit with the expected syntax
+    for param in parameters:
+      p = re.match('^--([a-z]+)="(.+)"', param)
+      if p:
+        nxlog.log(nxlog.LOG_DEBUG, 'Param %r matched' % param)
+      else:
+        nxlog.log(nxlog.LOG_DEBUG, 'Param %r missed' % param)
+      # FIXME DO something with the params.
+      # Note that --user is IGNORED
+    self.prompt(127, 'Available sessions:')
+    self.write("%s\n%s" % (self.LISTSESSION_COLUMNS_HEADER, self.LISTSESSION_COLUMNS_DASHES))
+    #DEBUG: remove later
+    #self.write("1057    unix-kde         A28EBF5AAC354E9EEAFEEB867980C543 -RD--PSA    24 800x600        Suspended   warped0")
+    #self.write("1057    unix-kde         A28EBF5AAC354E9EEAFEEB867980C543 -RD--PSA    24 800x600        Suspended   warped0")
+    #END DEBUG
+    self.write('') # Print newline.
+    self.prompt(148, "Server capacity: not reached for user: %s" % self.username)
+
+  def _nx_startsession_handler(self, command):
+    """Handle the startsession NX command.
+
+    'startsession' seems to request a new session be started.
+    It requires parameters be specified. The following parameters have
+    been seen.
+    '--link="lan"'
+    '--backingstore="1"'
+    '--encryption="1"'
+    '--cache="16M"'
+    '--images="64M"'
+    '--shmem="1"'
+    '--shpix="1"'
+    '--strict="0"'
+    '--composite="1"'
+    '--media="0"'
+    '--session="localtest"'
+    '--type="unix-gnome"'
+    '--geometry="3840x1150"'
+    '--client="linux"'
+    '--keyboard="pc102/gb"'
+    '--screeninfo="3840x1150x24+render"'
+    Experiments with this command by directly invoked nxserver have not
+    worked, as it refuses to create a session saying the unencrypted sessions
+    are not supported. This is independent of whether the --encryption option
+    has been set, so probably is related to the fact the nxserver has not
+    been launched by sshd.
+
+    Args:
+      command: The NX command and arguments invoked
+
+    Returns:
+      None
+    """
+
+    # Basic checking of the right status
+    if self.status < self.STATUS_LOGGEDIN:
+      self.prompt(554, 'Error: the command \'startsession\' cannot '
+          'be called before login')
+      return
+    # Make sure the state is consistent
+    assert(hasattr(self, 'username'))
+    # Ask for parameters if none have been given
+    if len(command) > 1:
+      parameters = command[1:]
+    else:
+      self.prompt(106, 'Parameters: ', override_newline=False)
+      response = self.input.readline()
+      self.write('') # Do newline after parameters.
+      parameters = response.split()
+    # Check the parameters fit with the expected syntax
+    for param in parameters:
+      p = re.match('^--([a-z]+)="(.+)"', param)
+      if p:
+        nxlog.log(nxlog.LOG_DEBUG, 'Param %r matched' % param)
+      else:
+        nxlog.log(nxlog.LOG_DEBUG, 'Param %r missed' % param)
+      # FIXME DO something with the params.
+    # FIXME Start the session.
+    if not hasattr(self, 'nxnode_commfd'):
+      nxlog.log(nxlog.LOG_ERR, 'Nxserver does not have an nxnode yet.')
+      return
+    # Send the command to the connected nxnode running
+    # FIXME Convert the arguments to the form expected by nxnode.
+    #DEBUG: remove later
+    self.write('startsession arguments', fd=self.nxnode_wfile)
+    self.prompt(700, 'Session id: %s-1116-DA49F2B8F86161BAD68B5349D63AC1D3' %
+        socket.getfqdn().lower())
+    self.prompt(705, 'Session display: 1116')
+    self.prompt(703, 'Session type: unix-kde')
+    self.prompt(701, 'Proxy cookie: C9B7CFDBC88A1138C698CBF44ADBC1E4')
+    self.prompt(702, 'Proxy IP: 172.26.170.56')
+    self.prompt(706, 'Agent cookie: C9B7CFDBC88A1138C698CBF44ADBC1E4')
+    self.prompt(704, 'Session cache: unix-kde')
+    self.prompt(707, 'SSL tunneling: 1')
+    self.prompt(708, 'Subscription: LFE/None/LFEN/None')
+    # Just to give nxagent time to start. The final version will wait for the
+    # status change message from nxnode/nxagent-helper.
+    time.sleep(10)
+    self.prompt(710, 'Session status: running')
+
+    #END DEBUG
+
+    self.daemonize()
+    # Two threads return here, one connected to the client, one connected to
+    # nxnode.
+  def daemonize(self):
+    """Drop into the background."""
+  
+    # I am assumuing this throws if fork fails.
+    pid = os.fork()
+    # In the parent, return.
+    if pid != 0:
+      # self.nxnode_rfile.close()
+      # self.nxnode_wfile.close()
+      os.close(self.nxnode_commfd)
+      # del(self.nxnode_rfile)
+      # del(self.nxnode_wfile)
+      # del(self.nxnode_commfd)
+      return
+
+    # Dissociate from the nxserver terminal
+    os.setsid()
+
+    # If we need to change signal behavior, do it here.
+
+    # Close the stdio fds.
+    # os.close(0)
+    # os.close(1)
+    # os.close(2)
+
+    self.input = self.nxnode_rfile
+    self.output = self.nxnode_wfile
+    
+    # I'm not sure what to do here with self.nxnode_rfile and self.nxnode_wfile
+    # Closing the fd is enough, but the file objects would linger on.
+    del(self.nxnode_rfile)
+    del(self.nxnode_wfile)
+    del(self.nxnode_commfd)
+
+    while True:
+      line = self.input.readline().rstrip()
+      if not line:
+        return
+      nxlog.log(nxlog.LOG_DEBUG, 'Got from nxnode %r' % line)
+    
+
+
+if __name__ == '__main__':
+  print 'This is a library. Please use it from python using import.'
+  sys.exit(0)

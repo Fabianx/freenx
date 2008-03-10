@@ -1,0 +1,61 @@
+#!/bin/bash
+
+# Copyright 2007 Google Inc.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+#
+# nxfoo - Provides functionality for the freenx redesign
+#
+# Authors: diamond@google.com (Stephen Shirley)
+#
+# License: GNU GPL, version 2
+#
+# Used configuration keys:
+#
+# Used internal subfunctions:
+#
+# Used internal variables:
+#
+# Used internal components:
+#
+# Used external programs:
+#
+# Accepted protocol requests from client:
+#
+# Used protocol responses to client:
+#
+# FAQ-Questions:
+#
+# SVN: $Id: $
+#
+
+. nxloadconfig --config="nxstart" || { echo "NX 503> Internal server error. nxloadconfig could not be loaded by nxstart."; exit 1; }
+
+AGENT_PID="$1"
+shift
+
+nxlog_log NOTICE "Agent: $AGENT_PID Cmd: $@"
+
+echo "Xft.dpi: 96" | LANG=C xrdb -merge 2>&1 | nxlog_log_pipe DEBUG
+
+"$@" 2>&1 | nxlog_log_pipe DEBUG
+
+msg="Cmd exited, nxagent (pid $AGENT_PID)"
+if kill -0 "$AGENT_PID" &>/dev/null; then
+  nxlog_log DEBUG "$msg still exists, killing"
+  kill "$AGENT_PID" || nxlog_log ERR "Killing nxagent returned error $?"
+else
+  nxlog_log NOTICE "$msg already exited"
+fi

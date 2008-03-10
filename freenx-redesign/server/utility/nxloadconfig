@@ -1,18 +1,30 @@
 #!/bin/bash
 
+# Copyright 2007 Google Inc.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+#
 # nxloadconfig - Read configuration files, setup logging
 #
-# Copyright 2007 Google Inc.
-# All Rights Reserved.
 # Author: diamond@google.com (Stephen Shirley)
-#
-# License: GNU GPL, version 2
 #
 # Used configuration keys:
 #
 # Used internal subfunctions:
 #
-# @sub "log n" log to (sys)log with loglevel n
+# @sub "nxlog_log n" log to (sys)log with loglevel n
 #
 # Used internal variables:
 #
@@ -33,36 +45,63 @@
 # SVN: $Id$
 #
 
+COMMAND_GETOPT="$(which getopt)"
+
 # Store these for use later
-ORIG_ARGS=($@)
+ORIG_ARGS=("$@") # Initialise ORIG_ARGS as an array
 SCRIPT_NAME=$(basename $0)
 SCRIPT_DIR=$(dirname $0)
+PATH_BASE="${PATH_BASE:-/usr/freenx}"
+PATH_ETC="${PATH_ETC:-$PATH_BASE/etc}"
+PATH_BIN="${PATH_BIN:-$PATH_BASE/bin}"
+
+
+check_command_vars() {
+	check_command_var COMMAND_START_KDE "$(which startkde:-NOTFOUND)"
+	check_command_var COMMAND_START_GNOME "$(which gnome-session:-NOTFOUND)"
+	check_command_var COMMAND_START_CDE "$(which cdwm:-NOTFOUND)"
+	check_command_var COMMAND_XTERM "$(which xterm:-NOTFOUND)"
+	check_command_var COMMAND_XAUTH "$(which xauth:-NOTFOUND)"
+	check_command_var COMMAND_SMBMOUNT "$(which smbmount:-NOTFOUND)"
+	check_command_var COMMAND_SMBUMOUNT "$(which smbumount:-NOTFOUND)"
+	check_command_var COMMAND_NETCAT "$(which netcat:-NOTFOUND)"
+	check_command_var COMMAND_SSH "$(which ssh:-NOTFOUND)"
+	check_command_var COMMAND_SSH_KEYGEN "$(which ssh-keygen:-NOTFOUND)"
+	check_command_var COMMAND_CUPSD "$(which cupsd:-NOTFOUND)"
+	check_command_var COMMAND_MD5SUM "$(which md5sum:-NOTFOUND)"
+	check_command_var NXSESSION_HOOK "$(which nxsession:-NOTFOUND)"
+}
+
+
+check_dir_vars() {
+	check_dir_var PATH_BASE "$PATH_BASE"
+	check_dir_var PATH_BIN "$PATH_BASE/bin"
+	check_dir_var PATH_ETC "$PATH_BASE/etc"
+	check_dir_var PATH_LIB "$PATH_BASE/lib"
+}
 
 
 parse_args() {
-	ARGS=$(/usr/bin/getopt -n "$SCRIPT_NAME" -o "h" -l "config:,help" -- \
-	"${ORIG_ARGS[@]}" 2>/dev/null)
+	# Horrible hack to parse the output of getopt correctly
+	eval ARGS=("$("$COMMAND_GETOPT" -n "$SCRIPT_NAME" -o "h" -l "config:,help" -- \
+	"${ORIG_ARGS[@]:-}")")
 
-	if [ $? != 0 ]
-	then
-		# Can't grab only the error message if there's an issue, so just run it
-		# again to output the error directly.
-		/usr/bin/getopt -n "$SCRIPT_NAME" -o "h" -l "config:,help" -- \
-		"${ORIG_ARGS[@]}" > /dev/null
+	if [ "$?" != "0" ]; then
+		echo "Error: unable to parse arguments: \"${ORIG_ARGS[@]}\"" >&2
 		exit 1
 	fi
 }
 
 
 process_args() {
-	HELP="no"
+	local HELP="no"
 
 	while true; do
 		case "$1" in
 			--config) CONF_NAME="$2"; shift 2 ;;
 			-h|--help) HELP="yes"; shift ;;
 			--) shift; break ;;
-			*) echo "$SCRIPT_NAME: error parsing cmdline" >&2; exit 1 ;;
+			*) echo "$SCRIPT_NAME: error parsing cmdline: $@" >&2; exit 1 ;;
 		esac
 	done
 
@@ -71,128 +110,144 @@ process_args() {
 
 
 usage() {
-	echo "$SCRIPT_NAME - Load the FreeNX configuration variables into the environment."
-	echo "Syntax: nxloadconfig -h|--help"
-	echo "        nxloadconfig [--config=name]"
-	echo
-	echo "  --config=name            Load $PATH_ETC/name.conf config file."
-	echo "  -h,--help                Display this message."
+	{
+		echo "$SCRIPT_NAME - Load the FreeNX configuration variables into the environment."
+		echo "Syntax: nxloadconfig -h|--help"
+		echo "        nxloadconfig [--config=name]"
+		echo
+		echo "  --config=name            Load $PATH_ETC/name.conf config file."
+		echo "  -h,--help                Display this message."
+	} >&2
 	exit 0
 }
 
 
 default_if_not_set() {
-	var="$1"
-	default="$2"
+	local var="$1"
+	local default="$2"
 
 	# Is the var set?
 	if ! declare -p "$var" &> /dev/null
 	then
 		# Var is not set, set it to the default now and return
-		declare "$var" "$default"
+		eval "$var"="\"$default\""
 		return 0
 	else
+		# Var is set, carry on
 		return 1
 	fi
 }
 
 
-check_dir_vars() {
-	check_dir_var PATH_BASE "/usr/NX"
-	check_dir_var PATH_BIN "$PATH_BASE/bin"
-	check_dir_var PATH_ETC "$PATH_BASE/etc"
-	check_dir_var PATH_LIB "$PATH_BASE/lib"
-}
-
-
 check_dir_var() {
-	var="$1"
-	defdir="$2"
+	local var="$1"
+	local defdir="$2"
 	# Gets the value of the variable named by $var
-	varval=$(eval echo \$"$foo")
+	local varval="$(eval "echo \"\${$var:-}\"")"
 
-	default_if_not_set "$var" "$defdir" && return
-
-	if [ ! -d "$varval" ]
-	then
-		log $LOG_WARNING "Invalid directory variable $var: $varval"
-		declare "$var" "$defdir"
+	# Only check current value if it's actually been set
+	if ! default_if_not_set "$var" "$defdir"; then
+		if [ ! -d "$varval" ]
+		then
+			nxlog_log $_NXLOG_LOG_WARNING "Invalid directory variable $var: \"$varval\""
+			eval "$var"="\"$defdir\""
+		else
+			# Everything checks out.
+			return
+		fi
 	fi
 
 	if [ ! -d "$defdir" ]
 	then
-		log $LOG_ERR "Invalid default directory variable $var: $defdir"
+		nxlog_log $_NXLOG_LOG_ERR "Invalid default directory variable $var: \"$defdir\""
 		exit 1
 	fi
-}
-
-
-check_command_vars() {
-	check_command_var COMMAND_START_KDE "startkde"
-	check_command_var COMMAND_START_GNOME "gnome-session"
-	check_command_var COMMAND_START_CDE "cdwm"
-	check_command_var COMMAND_XTERM "xterm"
-	check_command_var COMMAND_XAUTH "/usr/X11R6/bin/xauth"
-	check_command_var COMMAND_SMBMOUNT "smbmount"
-	check_command_var COMMAND_SMBUMOUNT "smbumount"
-	check_command_var COMMAND_NETCAT "netcat"
-	check_command_var COMMAND_SSH "ssh"
-	check_command_var COMMAND_SSH_KEYGEN "ssh-keygen"
-	check_command_var COMMAND_CUPSD "/usr/sbin/cupsd"
-	check_command_var COMMAND_MD5SUM "md5sum"
 }
 
 
 check_command_var() {
-	var="$1"
-	defcmd="$2"
+	local var="$1"
+	local defcmd="$2"
 	# Gets the value of the variable named by $var
-	varval=$(eval echo \$"$foo")
+	local varval=$(eval echo \"\${"$var":-}\")
 
-	default_if_not_set "$var" "$defcmd" && return
-
-	if [ ! -d "$varval" ]
-	then
-		log $LOG_WARNING "Invalid directory variable $var: $varval"
-		declare "$var" "$defdir"
+	# Only check current value if it's actually been set
+	if ! default_if_not_set "$var" "$defcmd"; then
+		if [ ! -x "$varval" -o ! -f "$varval" ]
+		then
+			nxlog_log $_NXLOG_LOG_WARNING "Invalid command variable $var: \"$varval\""
+			eval "$var"="\"$defcmd\""
+		else
+			# Everything checks out.
+			return
+		fi
 	fi
 
-	if [ ! -d "$defdir" ]
-	then
-		log $LOG_ERR "Invalid default directory variable $var: $defdir"
-		exit 1
+	# If the default is empty, it probably means the executable couldn't be found.
+	if [ "$defcmd" = "" ]; then
+		eval "$var"="\"NOTFOUND\""
+	else
+		if [ ! -x "$defcmd" -o ! -f "$defcmd" ]
+		then
+			nxlog_log $_NXLOG_LOG_ERR "Invalid default command variable $var: \"$defcmd\""
+			exit 1
+		fi
 	fi
 }
 
 
 load_file() {
-	file="$1"
+	local file="$1"
 
-	if [ -f "$file" ]
-	then
-		. "$file"
-	else
-		echo "$SCRIPT_NAME: no such file or directory: \"$file\"" >&2; exit 1;
+	set -- # Clear arguments before sourcing
+	# Depend on the file being in in $PATH, or a path specified
+	if ! . "$file"; then
+		echo "$SCRIPT_NAME: error sourcing \"$file\": ${err:-}" >&2
+		echo "PATH: $PATH" >&2
+		exit 1
 	fi
 }
 
-parse_args
-eval set -- "$ARGS"
-process_args "$@"
+nxloadconfig_main() {
+	parse_args
+	process_args "${ARGS[@]}"
 
-# Load logging fuctionality
-LOG_LEVEL=$LOG_WARNING
-load_file "$SCRIPT_DIR/nxlog"
+	# Load general configuration
+	load_file "$PATH_ETC/general.conf"
 
-# Load general configuration
-load_file "$PATH_ETC/general.conf"
-# Load function-specific configuration
-[ -n "$CONF_NAME" ] && load_file "$PATH_ETC/$CONF_NAME.conf"
+	# Load logging fuctionality
+	LOG_LEVEL="${LOG_LEVEL:-WARNING}"
+	load_file "nxlog"
 
-check_dir_vars
-check_command_vars
+	# Load function-specific configuration
+	[ -n "${CONF_NAME:-}" -a -e "$PATH_ETC/${CONF_NAME:-}.conf" ] && \
+		load_file "$PATH_ETC/$CONF_NAME.conf"
 
-log $LOG_DEBUG "called with cmdline: ${ORIG_ARGS[@]}"
+	# In case the function-specific config updates $LOG_LEVEL
+	_nxlog_set_log_level
 
+	check_dir_vars
+	check_command_vars
+	default_if_not_set "NX_VERSION" "3.0.0"
+	default_if_not_set "NX_LICENSE" "GPL"
+
+	nxlog_log $_NXLOG_LOG_DEBUG "called with cmdline: ${ORIG_ARGS[@]:-}"
+
+	if [ -z "${UNITTESTING:-}" ]; then
+		# Unset functions that aren't useful outside of nxloadconfig
+		unset check_command_vars
+		unset check_dir_vars
+		unset parse_args
+		unset process_args
+		unset usage
+		unset nxloadconfig_main
+	fi
+}
+
+if [ -z "${UNITTESTING:-}" ]; then
+	nxloadconfig_main
+fi
+
+true # So sourcing the file will return 0 if everything is ok.
 
 # vim: ts=8 noexpandtab sw=8 softtabstop=0

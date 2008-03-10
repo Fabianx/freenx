@@ -1,0 +1,97 @@
+#!/bin/bash
+#
+# Copyright 2007 Google Inc.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+#
+# Author: diamond@google.com (Stephen Shirley)
+
+oneTimeSetUp() {
+  . "include/test-functions.inc" && setupLoadConfig
+  # Uncomment for debugging unit tests:
+  #setup_extra_logging="setupLoggingStderr"
+
+  cat << EOF > "$PATH_ETC/nxlog.override"
+nxlog_log() { :; }
+EOF
+
+  . "$PATH_ETC/nxlog.override"
+}
+
+testSource() {
+  . "$PATH_BIN/nxloadconfig" && [ -n "$PATH_BASE" ]
+  assertTrue "nxloadconfig fails when sourced" "$?"
+}
+
+testDefault_if_not_set() {
+  unset CHECKVAR
+  default_if_not_set CHECKVAR "val  ue1"
+  assertTrue "default_if_not_set incorrectly returns true when variable is not set" "$?"
+  assertEquals "default_if_not_set failed to set unset var to default value" "val  ue1" "$CHECKVAR"
+
+  CHECKVAR=""
+  default_if_not_set CHECKVAR value2
+  assertFalse "default_if_not_set incorrectly returns true when variable is set but null" "$?"
+  assertEquals "default_if_not_set changed the value of a set variable" "" "$CHECKVAR"
+
+  CHECKVAR="some  thing"
+  default_if_not_set CHECKVAR value3
+  assertFalse "default_if_not_set incorrectly returns true when variable is set to a non-null string" "$?"
+  assertEquals "default_if_not_set changed the value of a set variable" "some  thing" "$CHECKVAR"
+
+  unset CHECKVAR
+}
+
+testCheck_dir_var() {
+  unset CHECKDIR
+  check_dir_var CHECKDIR "/etc"
+  assertEquals "check_dir_var fails to set correct default dir when var isn't set" "/etc" "$CHECKDIR"
+
+  CHECKDIR="/nonexistent dir. i hope"
+  check_dir_var CHECKDIR "/usr"
+  assertEquals "check_dir_var fails to set correct default dir when var has an invalid value" "/usr" "$CHECKDIR"
+
+  CHECKDIR="/etc"
+  check_dir_var CHECKDIR "/usr"
+  assertEquals "check_dir_var incorrectly overridess valid directory value" "/etc" "$CHECKDIR"
+
+  CHECKDIR="/nonexistent dir. i hope"
+  ( check_dir_var CHECKDIR "/also nonexistent dir. i hope"; exit 0; )
+  assertFalse "check_dir_var failed to detect an invalid default directory value" "$?"
+
+  unset CHECKDIR
+}
+
+testCheck_command_var() {
+  unset CHECKCMD
+  check_command_var CHECKCMD "/sbin/init"
+  assertEquals "check_command_var fails to set correct default path when var isn't set" "/sbin/init" "$CHECKCMD"
+
+  CHECKCMD="/etc/fstab"
+  check_command_var CHECKCMD "/sbin/init"
+  assertEquals "check_command_var fails to set correct default path when var has an invalid value" "/sbin/init" "$CHECKCMD"
+
+  CHECKCMD="/bin/true"
+  check_command_var CHECKCMD "/bin/sh"
+  assertEquals "check_command_var incorrectly overridess valid command value" "/bin/true" "$CHECKCMD"
+
+  CHECKCMD="/nonexistent cmd. i hope"
+  ( check_command_var CHECKCMD "/also nonexistent cmd. i hope"; exit 0; )
+  assertFalse "check_command_var failed to detect an invalid default command value" "$?"
+
+  unset CHECKCMD
+}
+
+. ../utility/shunit2

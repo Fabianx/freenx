@@ -1,0 +1,157 @@
+#!/bin/sh
+#
+# Copyright 2007 Google Inc.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+#
+# Author: diamond@google.com (Stephen Shirley)
+
+. "./include/test-functions.inc"
+
+aEquals() { [ "$2" = "$3" ]; }
+aTrue() { return "$2"; }
+
+testReadLineX()
+{
+  input="line1\nline2\nline3\nline4"
+  ret=$(printf "$input" | readLineX 1)
+  assertEquals "Correct line(1) was not returned" "line1" "$ret"
+  ret=$(printf "$input" | readLineX 4)
+  assertEquals "Correct line(4) was not returned" "line4" "$ret"
+}
+
+testToUpper()
+{
+  input="AAbbVVVcccDDD4223'1#24Azz"
+  expected_output="AABBVVVCCCDDD4223'1#24AZZ"
+  assertEquals "toUpper output isn't correct" "$(toupper "$input")" "$expected_output"
+}
+
+testTrim()
+{
+  input=$(printf "hello world\r\n")
+  expected_output="hello world"
+  assertEquals "Trim didn't trim correctly" "$(trim "$input")" "$expected_output"
+}
+
+testReadTrimToupper()
+{
+  EXPECT="helloworld"
+  assertEquals "readTrimToupper fails basic check" \
+  "$(toupper "$EXPECT")" "$(eval "readTrimToupper $EXTERN_STDOUT<< EOT
+$EXPECT
+EOT
+  ")"
+
+  EXPECT="helloworld "
+  assertEquals "readTrimToupper doesn't respect trailing whitespace" \
+  "$(toupper "$EXPECT")" "$(eval "readTrimToupper $EXTERN_STDOUT<< EOT
+$EXPECT
+EOT
+  ")"
+
+  EXPECT="hello world"
+  assertEquals "readTrimToupper doesn't respect inline whitespace" \
+  "$(toupper "$EXPECT")" "$(eval "readTrimToupper $EXTERN_STDOUT<< EOT
+$EXPECT
+EOT
+  ")"
+
+  EXPECT=" hello  world   "
+  assertEquals "readTrimToupper doesn't respect whitespace everywhere" \
+  "$(toupper "$EXPECT")" "$(eval "readTrimToupper $EXTERN_STDOUT<< EOT
+$EXPECT
+EOT
+  ")"
+}
+
+testRecvCheck()
+{
+  EXPECT="helloworld"
+  eval "recvCheck '' \"$EXPECT\" $EXTERN_STDOUT<< EOT
+$EXPECT
+EOT"
+  assertTrue "recvCheck fails to match when it should" $?
+
+  EXPECT="helloworld"
+  eval "recvCheck '' \"$EXPECT\" $EXTERN_STDOUT<< EOT
+$EXPECT bogus
+EOT"
+  assertFalse "recvCheck matches when it shouldn't" $?
+}
+
+testRecvCheckRegx()
+{
+  EXPECT="helloworld"
+  eval "recvCheckRegx '' 'hell.{3}[ra]ld' $EXTERN_STDOUT<< EOT
+$EXPECT
+EOT"
+  assertTrue "recvCheckRegx fails to match when it should" $?
+
+  EXPECT="helloworld"
+  eval "recvCheckRegx '' 'hell.{3}[wa]ld' $EXTERN_STDOUT<< EOT
+$EXPECT
+EOT"
+  assertFalse "recvCheckRegx matches when it shouldn't" $?
+}
+
+testSendRecvCheck()
+{
+  sendRecvSetup
+
+  EXPECT="hello world"
+  sendRecvCheck "$EXPECT" "" "$EXPECT"
+  assertTrue "sendRecvCheck doesn't match when it should" $?
+
+  sendRecvCheck "$EXPECT" "" "$EXPECT bogus"
+  assertFalse "sendRecvCheck matches when it shouldn't" $?
+
+  sendRecvTearDown
+}
+
+testSendRecvCheckRegx()
+{
+  sendRecvSetup
+
+  EXPECT='hell.{3}[ra]ld'
+  sendRecvCheckRegx "helloworld" "" "$EXPECT"
+  assertTrue "sendRecvCheckRegx doesn't match when it should" $?
+
+  EXPECT='hell.{3}[wa]ld'
+  sendRecvCheckRegx "helloworld" "" "$EXPECT"
+  assertFalse "sendRecvCheckRegx matches when it shouldn't" $?
+
+  sendRecvTearDown
+}
+
+sendRecvSetup()
+{
+  EXTERN_TEST=4
+  rm -rf .extern.*
+  mkfifo .extern.test
+  eval "exec $EXTERN_TEST<>.extern.test"
+  EXTERN_WRITE=$EXTERN_TEST
+  EXTERN_READ=$EXTERN_TEST
+}
+
+sendRecvTearDown()
+{
+  eval "exec $EXTERN_TEST<&-"
+  rm -rf .extern.*
+  unset EXTERN_WRITE
+  unset EXTERN_READ
+}
+
+. ../utility/shunit2
