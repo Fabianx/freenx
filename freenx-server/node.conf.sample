@@ -92,6 +92,19 @@
 #    is not provided.
 #SSHD_CHECK_IP="0"
 
+# If ENABLE_SLAVE_MODE="1" the user will be just logged in _once_ and the 
+# communication is done via nxnode slave mode.
+#
+# This is useful for one time passwords or to have less traffic in utmp 
+# and wtmp.
+#
+# Also session startup times are much faster in slave mode. This is true especially 
+# if many printers or shares have to be added.
+#
+# For this to work the binary nxserver-helper has to be installed in 
+# PATH_BIN.
+#
+#ENABLE_SLAVE_MODE="0"
 
 #########################################################################
 # Restriction directives

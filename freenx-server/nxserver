@@ -502,9 +502,15 @@ nxnode_login_stop_slave()
 {
 	if [ -n "$NXNODE_LOGIN_SLAVE" ]
 	then
+		log 3 "Info: Closing connection to slave with pid $NXNODE_LOGIN_SLAVE."
+		# send quit command
+		echo "--quit" >&$NX_COMM_FD
+
+		# kill process
 		kill "$NXNODE_LOGIN_SLAVE"
 		sleep 2
 		kill -0 "$NXNODE_LOGIN_SLAVE" && kill -9 "$NXNODE_LOGIN_SLAVE"
+		unset NXNODE_LOGIN_SLAVE
 	fi
 }
 
@@ -517,43 +523,58 @@ nxnode_login()
 	then
 		NXNODE_TOSEND="$NXNODE_TOSEND" echo $PASS | $PATH_BIN/nxnode-login "$@"
 	else
-		if [ -z "$NXNODE_LOGIN_SLAVE" ]
+		if [ -z "$NXNODE_LOGIN_SLAVE" -a -z "$NX_TRUSTED_USER" ]
 		then
 			# Send password
-			echo "$PASS" >&4 
+			echo "$PASS" >&$NX_COMM_FD
 
 			# Connect to NXNODE
 			
-			$PATH_BIN/nxnode-login "$1" "$2" "$3" "$4" "$5" "--slave" <&3 >&3 2>&3 &
+			( $PATH_BIN/nxnode-login "$1" "$2" "$3" "$4" "$5" "--slave" <&$NX_SERVER_FD >&$NX_SERVER_FD 2>&$NX_SERVER_FD || echo "FREENX> 716 Slave mode failed to start." >&$NX_SERVER_FD )  &
 			NXNODE_LOGIN_SLAVE="$!"
 			disown $!
 
 			trap nxnode_login_stop_slave EXIT
+
+			NXNODE_SLAVE_STARTED=""
 			
-			while read line <&4
+			# FIXME: Make timeout configurable
+			while read -t 10 line <&$NX_COMM_FD
 			do
 				log 6 "$line"
 				case "$line" in
 					"NX> 716 Slave mode started successfully.")
+						NXNODE_SLAVE_STARTED="1"
+						break
+					;;
+					"FREENX> 716 Slave mode failed to start.")
 						break
 					;;
 				esac
 			done
 
-			# TODO: KILL the slave node at end of session
+			if [ -z "$NXNODE_SLAVE_STARTED" ]
+			then
+				# stop it, if it still exists
+				nxnode_login_stop_slave 
+				unset NXNODE_LOGIN_SLAVE
+				# return an error
+				return 1
+			fi
 		fi
 		
 		#send CMD to nxnode
 		
-		echo "$6" >&4
-		[ -n "$NXNODE_TOSEND" ] && echo "$NXNODE_TOSEND" >&4
+		echo "$6" >&$NX_COMM_FD
+		[ -n "$NXNODE_TOSEND" ] && echo "$NXNODE_TOSEND" >&$NX_COMM_FD
 
 		NXNODE_RETURN="1"
 
 		if [ -z "$NXNODE_READER" ]
 		then
-			while read line <&4
+			while read line <&$NX_COMM_FD
 			do
+				log 6 "nxnode_reader: $line"
 				echo "$line"
 				case "$line" in
 					"NX> 716"*) 
@@ -574,8 +595,6 @@ nxnode_login_register_reader()
 	# Register a reader
 	NXNODE_READER="1"
 }
-
-#ENABLE_NXNODE_SLAVE_MODE="1"
 
 # Start!
 [ "$NX_LOG_LEVEL" -ge "1" ] && touch "$NX_LOGFILE" >/dev/null 2>&1
@@ -606,19 +625,46 @@ fi
 NXNODE_LOGIN_SLAVE_ENABLED="0"
 NXNODE_LOGIN_SLAVE=""
 
-if [ "$ENABLE_NXNODE_SLAVE_MODE" = "1" -a "$NXSERVER_HELPER_ACTIVE" != "1" ]
+if [ "$ENABLE_SLAVE_MODE" = "1" -a "$NXSERVER_HELPER_ACTIVE" != "1" ]
 then
 	export SSH_ORIGINAL_COMMAND
 	export NXSERVER_HELPER_ACTIVE="1"
 	exec $PATH_BIN/nxserver-helper "$0"
 	log 1 "Error: Execution of $PATH_BIN/nxserver-helper failed. Disabling slave mode of nxnode."
+	export NXSERVER_HELPER_ACTIVE="0"
 fi
 
-if [ "$ENABLE_NXNODE_SLAVE_MODE" = "1" -a "$NXSERVER_HELPER_ACTIVE" = "1" ]
+if [ "$ENABLE_SLAVE_MODE" = "1" -a "$NXSERVER_HELPER_ACTIVE" = "1" ]
 then
-	log 3 "Info: Using fds #3 and #4 for communication with nxnode."
+	log 3 "Info: Using fds #$NX_SERVER_FD and #$NX_COMM_FD for communication with nxnode."
 	NXNODE_LOGIN_SLAVE_ENABLED="1"
 fi
+
+if [ -n "$NX_TRUSTED_USER" -a -n "$NX_COMMFD" ]
+then
+	NXNODE_LOGIN_SLAVE_ENABLED="1"
+	USER=$NX_TRUSTED_USER
+	
+	# check that communication works
+	nxnode_login "" -- su "$USER" "" "$PATH_BIN/nxnode" --check 2>&1 >/dev/null
+
+	if [ $? -ne 0 ]
+	then
+		log 1 "Error: Could not establish communication with trusted user ($USER) nxnode."
+		echo_x "NX> 404 ERROR: wrong password or login"
+		echo_x "NX> 999 Bye"
+		exit 1
+	fi
+	
+	LOGIN_SUCCESS="1"
+	LOGIN_METHOD="SU"
+
+	log 3 "Info: Using fd #$NX_COMM_FD for communication with trusted user ($USER) established nxnode."
+	
+	# Reread the config files (so that $USER.node.conf get sourced)
+	. $(PATH=$(cd $(dirname $0) && pwd):$PATH which nxloadconfig) --userconf
+	echo_x "NX> 103 Welcome to: $SERVER_NAME user: $USER"
+else
 
 echo_x "HELLO NXSERVER - Version $NX_VERSION $NX_LICENSE"
 
@@ -746,6 +792,11 @@ do
 		;;
 	esac
 done
+
+fi
+
+# Add the slave mode shutdown trap (just in case)
+[ -n "$NXNODE_LOGIN_SLAVE" ] && trap nxnode_login_stop_slave EXIT
 
 # remove old session infos from history
 session_cleanup

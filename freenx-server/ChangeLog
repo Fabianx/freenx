@@ -61,6 +61,12 @@ xx.01.2008 FreeNX 0.7.2
 	* Added usage of nxredir library to forward port 139,445 to the
 	  client side forwarded SMB port.
 	  (fabianx@bat.berlios.de)
+	* Made the slave mode finally functional. With that slave mode it is
+	  possible to do a single sign on instead of the multiple logins used
+	  before. It is also possible to use a suid wrapper to login as user.
+	  With single sign on session startup is a lot faster. This is true 
+	  especially if there are many printers and files to be shared.
+	  (fabianx@bat.berlios.de)
 
 14.10.2007 FreeNX 0.7.1 "Hip Hop Edition"
 	* Fixed the issue that makes fonts look tiny and unreadable by default 

@@ -26,7 +26,11 @@
 # -----------------------------------------------------------------------------
 #
 
-echo "NX> 1000 NXNODE - Version $NX_VERSION $NX_LICENSE"
+DELIM="NX>"
+
+[ -n "$2" ] && DELIM="NX-$2>"
+
+echo "$DELIM 1000 NXNODE - Version $NX_VERSION $NX_LICENSE"
 
 if [ "$1" != "--check" -a "$1" != "--setkey" -a "$1" != "--agent" -a "$1" != "--slave" ]
 then 
@@ -1300,7 +1304,7 @@ wait # for all children
 cmd_node_terminate()
 {
 	sessionid=$(getparam_sessionid)
-	echo "NX> 716 Terminating session $sessionid on user request."
+	echo "$DELIM 716 Terminating session $sessionid on user request."
 	display=$(cd $USER_FAKE_HOME/.nx/; echo C-$SERVER_NAME-*-$sessionid | awk 'BEGIN {FS="-"} {i=NF-1; print $i}')
 	node_terminate_session "$SERVER_NAME-$display-$sessionid"
 }
@@ -1308,7 +1312,7 @@ cmd_node_terminate()
 cmd_node_suspend()
 {
 	sessionid=$(getparam_sessionid)
-	echo "NX> 716 Suspending session $sessionid on user request."
+	echo "$DELIM 716 Suspending session $sessionid on user request."
 	display=$(cd $USER_FAKE_HOME/.nx/; echo C-$SERVER_NAME-*-$sessionid | awk 'BEGIN {FS="-"} {i=NF-1; print $i}') 
 	node_suspend_session "$SERVER_NAME-$display-$sessionid"
 }
@@ -1480,23 +1484,28 @@ if [ "$1" = "--slave" ]
 then
 	# New slave mode accepts more than 1 command at a time
 	echo "NX> 716 Slave mode started successfully."
-	
+	NODE_SESSION=""
+
 	while read CMD
 	do
-		set -- "$CMD"
-		if [ "$1" != "--check" -a "$1" != "--setkey" -a "$1" != "--agent" ]
+		[ "$CMD" = "--quit" ] && break
+		
+		if [ "$CMD" != "--check" -a "$CMD" != "--setkey" -a "$CMD" != "--agent" ]
 		then 
 			read CMDLINE
 
 			CMDLINE="a=b&$CMDLINE"
 		fi
 		
-		if [ "$1" = "--startsession" -o "$1" = "--resumesession" ]
+		if [ "$CMD" = "--startsession" -o "$CMD" = "--resumesession" ]
 		then
 			export SLAVE_PID=$$
 			( echo $CMDLINE | "$0" "$CMD"; kill $SLAVE_PID ) &
+			NODE_SESSION="$!"
 		else
-			( echo $CMDLINE | "$0" "$CMD" ) &
+			DELIM=""
+			[ -n "$NODE_SESSION" ] && DELIM="$NODE_SESSION->$CMD"
+			( echo $CMDLINE | "$0" "$CMD" "$DELIM" ) &
 		fi
 
 	done
@@ -1504,4 +1513,4 @@ else
 	nxnode_func "$@"
 fi
 
-echo "NX> 1001 Bye."
+echo "$DELIM 1001 Bye."
