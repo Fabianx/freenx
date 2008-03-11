@@ -58,6 +58,9 @@ xx.01.2008 FreeNX 0.7.2
 	  CIFS and SMB printing at the same time - without recompiling samba -
 	  via the nxredir preload library.
 	  (fabianx@bat.berlios.de)
+	* Added usage of nxredir library to forward port 139,445 to the
+	  client side forwarded SMB port.
+	  (fabianx@bat.berlios.de)
 
 14.10.2007 FreeNX 0.7.1 "Hip Hop Edition"
 	* Fixed the issue that makes fonts look tiny and unreadable by default 

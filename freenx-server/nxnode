@@ -291,6 +291,14 @@ node_start_applications()
 	fi
 
 	[ "$cups" = "1" -a "$ENABLE_CUPS_SERVER_EXPORT" = "1" ] && export CUPS_SERVER="$USER_FAKE_HOME/.nx/C-$sess_id/cups/cups.sock"
+	
+	if [ "$ENABLE_SAMBA_PRELOAD" = "1" -a -x "$PATH_BIN/nxredir" ]
+	then
+		let NXSAMBA_PORT=$display+3000
+		export NXSAMBA_PORT
+		NODE_APPLICATION="$PATH_BIN/nxredir $NODE_APPLICATION"
+		echo "Info: NXNODE - Using nxredir wrapper script to forward SMB ports 139 and 445 to port $NXSAMBA_PORT." >> "$USER_FAKE_HOME/.nx/C-$sess_id/session"
+	fi
 
 	#
 	# Do we need to PRELOAD any libraries?

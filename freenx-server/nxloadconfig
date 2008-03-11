@@ -163,6 +163,7 @@ CUPS_DEFAULT_SOCK="/var/run/cups/cups.sock"
 CUPS_ETC="/etc/cups/"
 
 SAMBA_MOUNT_SHARE_PROTOCOL="both"
+ENABLE_SAMBA_PRELOAD="0"
 
 # Path directives
 
