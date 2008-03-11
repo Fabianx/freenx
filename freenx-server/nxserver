@@ -504,7 +504,7 @@ nxnode_login_stop_slave()
 	then
 		log 3 "Info: Closing connection to slave with pid $NXNODE_LOGIN_SLAVE."
 		# send quit command
-		echo "--quit" >&$NX_COMM_FD
+		echo "--quit" >&$NX_COMMFD
 
 		# kill process
 		kill "$NXNODE_LOGIN_SLAVE"
@@ -526,11 +526,11 @@ nxnode_login()
 		if [ -z "$NXNODE_LOGIN_SLAVE" -a -z "$NX_TRUSTED_USER" ]
 		then
 			# Send password
-			echo "$PASS" >&$NX_COMM_FD
+			echo "$PASS" >&$NX_COMMFD
 
 			# Connect to NXNODE
 			
-			( $PATH_BIN/nxnode-login "$1" "$2" "$3" "$4" "$5" "--slave" <&$NX_SERVER_FD >&$NX_SERVER_FD 2>&$NX_SERVER_FD || echo "FREENX> 716 Slave mode failed to start." >&$NX_SERVER_FD )  &
+			( $PATH_BIN/nxnode-login "$1" "$2" "$3" "$4" "$5" "--slave" <&$NX_SERVERFD >&$NX_SERVERFD 2>&$NX_SERVERFD || echo "FREENX> 716 Slave mode failed to start." >&$NX_SERVERFD )  &
 			NXNODE_LOGIN_SLAVE="$!"
 			disown $!
 
@@ -539,7 +539,7 @@ nxnode_login()
 			NXNODE_SLAVE_STARTED=""
 			
 			# FIXME: Make timeout configurable
-			while read -t 10 line <&$NX_COMM_FD
+			while read -t 10 line <&$NX_COMMFD
 			do
 				log 6 "$line"
 				case "$line" in
@@ -565,14 +565,14 @@ nxnode_login()
 		
 		#send CMD to nxnode
 		
-		echo "$6" >&$NX_COMM_FD
-		[ -n "$NXNODE_TOSEND" ] && echo "$NXNODE_TOSEND" >&$NX_COMM_FD
+		echo "$6" >&$NX_COMMFD
+		[ -n "$NXNODE_TOSEND" ] && echo "$NXNODE_TOSEND" >&$NX_COMMFD
 
 		NXNODE_RETURN="1"
 
 		if [ -z "$NXNODE_READER" ]
 		then
-			while read line <&$NX_COMM_FD
+			while read line <&$NX_COMMFD
 			do
 				log 6 "nxnode_reader: $line"
 				echo "$line"
@@ -625,7 +625,7 @@ fi
 NXNODE_LOGIN_SLAVE_ENABLED="0"
 NXNODE_LOGIN_SLAVE=""
 
-if [ "$ENABLE_SLAVE_MODE" = "1" -a "$NXSERVER_HELPER_ACTIVE" != "1" ]
+if [ "$ENABLE_SLAVE_MODE" = "1" -a "$NXSERVER_HELPER_ACTIVE" != "1" -a -z "$NX_TRUSTED_USER" ]
 then
 	export SSH_ORIGINAL_COMMAND
 	export NXSERVER_HELPER_ACTIVE="1"
@@ -636,7 +636,7 @@ fi
 
 if [ "$ENABLE_SLAVE_MODE" = "1" -a "$NXSERVER_HELPER_ACTIVE" = "1" ]
 then
-	log 3 "Info: Using fds #$NX_SERVER_FD and #$NX_COMM_FD for communication with nxnode."
+	log 3 "Info: Using fds #$NX_SERVERFD and #$NX_COMMFD for communication with nxnode."
 	NXNODE_LOGIN_SLAVE_ENABLED="1"
 fi
 
@@ -659,7 +659,7 @@ then
 	LOGIN_SUCCESS="1"
 	LOGIN_METHOD="SU"
 
-	log 3 "Info: Using fd #$NX_COMM_FD for communication with trusted user ($USER) established nxnode."
+	log 3 "Info: Using fd #$NX_COMMFD for communication with trusted user ($USER) established nxnode."
 	
 	# Reread the config files (so that $USER.node.conf get sourced)
 	. $(PATH=$(cd $(dirname $0) && pwd):$PATH which nxloadconfig) --userconf

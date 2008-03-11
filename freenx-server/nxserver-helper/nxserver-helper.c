@@ -22,11 +22,11 @@ int main(int argc, char* argv[])
 	
 	// This fd can be used by the server for spawning the node
 	snprintf(buf, 1022, "%d", fds[1]);
-	setenv("NX_SERVER_FD", buf, 1);
+	setenv("NX_SERVERFD", buf, 1);
 	
 	// This fd can be used for communication with the node
 	snprintf(buf, 1022, "%d", fds[0]);
-	setenv("NX_COMM_FD", buf, 1);
+	setenv("NX_COMMFD", buf, 1);
 
 	// We do not trust this user, he still has to login
 	unsetenv("NX_TRUSTED_USER");
