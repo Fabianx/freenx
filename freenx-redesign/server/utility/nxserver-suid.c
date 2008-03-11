@@ -15,7 +15,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
- * Author: alriddoch@google.com (Alistair Riddoch)
+ * Authors: alriddoch@google.com (Alistair Riddoch)
+ * 	    freenx@fabian-franz.de (Fabian Franz)
  */
 
 #include <sys/types.h>
@@ -36,7 +37,7 @@ char * prgname = NULL;
 
 #define STRING_BUFLEN 512
 #define NXNODE_COMMAND "nxnode"
-#define NXSERVER_COMMAND "nxserver"
+#define NXSERVER_COMMAND "/usr/freenx/bin/nxserver"
 
 int launch_nxnode(uid_t user, int comm_fd)
 {
@@ -68,23 +69,61 @@ int launch_nxserver(const char * username, int comm_fd, int argc, char ** argv)
 {
     size_t env_string_length;
     char * env_string;
+    char ** new_env;
     char ** new_argv;
     int i;
 
+    // Really drop the user priviledges
+    setreuid(geteuid(), geteuid());
+   
+    // Setup a clean environment.
+    new_env = calloc(5+1, sizeof(char *));
+
+    i=0;
+	
     env_string_length = snprintf(0, 0, "%s=%s",
                                  "NX_TRUSTED_USER", username);
     env_string = malloc(env_string_length + 1);
     assert(env_string != NULL);
     sprintf(env_string, "%s=%s", "NX_TRUSTED_USER", username);
-    putenv(env_string);
+    new_env[i++] = env_string;
 
     env_string_length = snprintf(0, 0, "%s=%d",
                                  "NX_COMMFD", comm_fd);
     env_string = malloc(env_string_length + 1);
     assert(env_string != NULL);
     sprintf(env_string, "%s=%d", "NX_COMMFD", comm_fd);
-    putenv(env_string);
+    new_env[i++] = env_string;
+    
+    env_string_length = snprintf(0, 0, "%s=%s",
+                                 "USER", "nx");
+    env_string = malloc(env_string_length + 1);
+    assert(env_string != NULL);
+    sprintf(env_string, "%s=%s", "USER", "nx");
+    new_env[i++] = env_string;
+    
+    if (getenv("SSH_CLIENT") != NULL)
+    {
+    	env_string_length = snprintf(0, 0, "%s=%s",
+    	                             "SSH_CLIENT", getenv("SSH_CLIENT"));
+    	env_string = malloc(env_string_length + 1);
+    	assert(env_string != NULL);
+    	sprintf(env_string, "%s=%s", "SSH_CLIENT", getenv("SSH_CLIENT"));
+    	new_env[i++] = env_string;
+    }
+    
+    if (getenv("SSH_CLIENT2") != NULL)
+    {
+    	env_string_length = snprintf(0, 0, "%s=%s",
+    	                             "SSH_CLIENT2", getenv("SSH_CLIENT2"));
+    	env_string = malloc(env_string_length + 1);
+    	assert(env_string != NULL);
+    	sprintf(env_string, "%s=%s", "SSH_CLIENT2", getenv("SSH_CLIENT2"));
+    	new_env[i++] = env_string;
+    }
 
+    // Setup argv array
+    
     new_argv = calloc(argc + 1, sizeof(char *));
     new_argv[0] = NXSERVER_COMMAND;
 
@@ -92,7 +131,7 @@ int launch_nxserver(const char * username, int comm_fd, int argc, char ** argv)
         new_argv[i] = argv[i];
     }
 
-    return execvp(NXSERVER_COMMAND, new_argv);
+    return execve(NXSERVER_COMMAND, new_argv, new_env);
 }
 
 int main(int argc, char ** argv)
