@@ -26,6 +26,7 @@ extern "C" {
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <sys/poll.h>	
+#include <sys/socket.h>	
 #include <signal.h>
 }
 
@@ -52,7 +53,8 @@ notQProcess::notQProcess () :
     progName("unknown"),
     error (NOTQPROCNOERROR),
     pid(0),
-    signalledStart(false)
+    signalledStart(false),
+    parentFD(-1)
 {
     // Set up the polling structs
     this->p = static_cast<struct pollfd*>(malloc (2*sizeof (struct pollfd)));	
@@ -62,6 +64,15 @@ notQProcess::notQProcess () :
 notQProcess::~notQProcess ()
 {
     free (this->p);
+    if (parentFD != -1)
+    {
+    	close(parentFD);
+	parentFD=-1;
+    }
+    // FIXME: this should be closed here
+   // close (parentToChild[READING_END]);
+   // close (childToParent[WRITING_END]);
+   // close (childErrToParent[WRITING_END]);
 }
 
     void
@@ -84,10 +95,18 @@ notQProcess::start (const string& program, const list<string>& args)
     // NB: The first item in the args list should be the program name.
     this->progName = program;
 
+#ifdef NXCL_USE_NXSSH
     // Set up our pipes
     if (pipe(parentToChild) == -1 || pipe(childToParent) == -1 || pipe(childErrToParent) == -1) {
         return NOTQTPROCESS_FAILURE;
     }
+#else /* We need a socketpair for that to work */
+    if (socketpair(AF_UNIX, SOCK_STREAM, 0, parentToChild) == -1 || pipe(childErrToParent) == -1)
+        return NOTQTPROCESS_FAILURE;
+    
+    childToParent[READING_END]=dup(parentToChild[WRITING_END]);
+    childToParent[WRITING_END]=dup(parentToChild[READING_END]);
+#endif
 
     this->pid = fork();
 

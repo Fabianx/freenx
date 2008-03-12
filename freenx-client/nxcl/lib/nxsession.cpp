@@ -69,6 +69,7 @@ string NXSession::parseSSH(string message)
     int response = parseResponse (message);
     string returnMessage;
 
+#ifdef NXCL_USE_NXSSH
     if (response == 211) {
         if (doSSH == true) {
             returnMessage = "yes";
@@ -80,6 +81,7 @@ string NXSession::parseSSH(string message)
     if (response == 204) { // Authentication failed
         returnMessage = "204";
     }
+#endif
 
     if (response == 147) { // Server capacity reached
         returnMessage = "147";
@@ -89,6 +91,17 @@ string NXSession::parseSSH(string message)
     switch (this->stage) {
         case HELLO_NXCLIENT:
             dbgln ("HELLO_NXCLIENT stage");
+
+	    if (message.find("Are you sure you want to continue connecting (yes/no)?") != string::npos)
+            	returnMessage = "yes"; // FF-FIXME: Or 211?
+	    
+	    if (message.find("assword") != string::npos)
+            	returnMessage = nxPassword; // FF-FIXME: -> What to do? What to do?
+	    
+	    if (message.find("Permission denied") != string::npos || 
+	            message.find("su: Authentication failure") != string::npos || 
+		    message.find("Unknown id:") != string::npos)
+                returnMessage = "204"; // Authentication failed
 
             if (message.find("HELLO NXSERVER - Version") != string::npos) {
                 this->callbacks->authenticatedSignal();

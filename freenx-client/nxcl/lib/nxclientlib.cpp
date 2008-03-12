@@ -8,7 +8,8 @@
                          :     Author: Sebastian James
                          : (C) 2008 Defuturo Ltd
                          :     Author: George Wright
-    email                : seb@esfnet.co.uk, gwright@kde.org
+                         : (C) 2008 Fabian Franz
+    email                : seb@esfnet.co.uk, gwright@kde.org, freenx@fabian-franz.de
  ***************************************************************************/
 
 /***************************************************************************
@@ -27,6 +28,14 @@
 #include "../config.h"
 
 #include <fstream>
+
+// Define to use nxssh
+#if defined(NXCL_CYGWIN) || defined(NXCL_DARWIN)
+
+// FF-FIXME That does not work.
+//#define NXCL_USE_NXSSH 1
+
+#endif
 
 extern "C" {
     #include <errno.h>
@@ -186,10 +195,14 @@ void NXClientLib::invokeNXSSH (string publicKey, string serverHost,
 
     // Start to build the arguments for the nxssh command.
     // notQProcess requires that argv[0] contains the program name
+#ifdef NXCL_USE_NXSSH
     arguments.push_back ("nxssh");
 
     argtmp << "-nx";
     arguments.push_back (argtmp.str());
+#else
+    arguments.push_back ("ssh");
+#endif
 
     argtmp.str("");
     argtmp << "-p" << port;
@@ -215,6 +228,7 @@ void NXClientLib::invokeNXSSH (string publicKey, string serverHost,
     }
 
     argtmp.str("");
+    // FF-FIXME: Perhaps the user wants to login as user directly
     argtmp << "nx@" << serverHost;
     arguments.push_back (argtmp.str());
 
@@ -227,9 +241,13 @@ void NXClientLib::invokeNXSSH (string publicKey, string serverHost,
     arguments.push_back ("-oRSAAuthentication no");
     arguments.push_back ("-oRhostsRSAAuthentication no");
     arguments.push_back ("-oPubkeyAuthentication yes");
+    // FF-FIXME: Perhaps the user wants to login as user directly
+    //arguments.push_back ("-c nxserver");
 
     if (encryption == true) {
+#ifdef NXCL_USE_NXSSH
         arguments.push_back("-B");
+#endif
         session.setEncryption (true);
     } else {
         session.setEncryption (false);
@@ -240,10 +258,16 @@ void NXClientLib::invokeNXSSH (string publicKey, string serverHost,
     // nxssh -E gives this message when called:
     // NX> 285 Enabling skip of SSH config files
     // ...so there you have the meaning.
+#ifdef NXCL_USE_NXSSH
     arguments.push_back ("-E");
+#endif
 
     // Find a path for the nxssh process using getPath()
+#ifdef NXCL_USE_NXSSH
     string nxsshPath = this->getPath ("nxssh");
+#else
+    string nxsshPath = this->getPath ("ssh");
+#endif
 
     this->nxsshProcess->start(nxsshPath, arguments);
 
@@ -365,8 +389,9 @@ void NXClientLib::processParseStdout()
 
         // On some connections this is sent via stdout instead of stderr?
         if (proxyData.encrypted && readyForProxy &&
-                ((*msgiter).find("NX> 999 Bye")!=string::npos)) {
-
+                ((*msgiter).find("NX> 999 Bye")!=string::npos)) 
+#ifdef NXCL_USE_NXSSH
+	{
             // This is "NX> 299 Switching connection to: " in
             // version 1.5.0. This was changed in nxssh version
             // 2.0.0-8 (see the nxssh CHANGELOG).
@@ -388,6 +413,11 @@ void NXClientLib::processParseStdout()
             this->externalCallbacks->connectedSuccessfullySignal();
             this->sessionRunning = true;
         }
+#else /* don't use nxssh, start nxproxy -stdin */
+	{
+		invokeProxy();
+	}
+#endif
 
         if ((*msgiter).find("Password") != string::npos) {
             this->externalCallbacks->write
@@ -402,6 +432,9 @@ void NXClientLib::processParseStdout()
                 dbgln ("NXClientLib::processParseStdout: Got auth failed"
                         " or capacity reached, calling this->parseSSH.");
                 msg = this->parseSSH (*msgiter);
+#ifndef NXCL_USE_NXSSH
+		this->isFinished = true;
+#endif
             }
             if (msg.size() > 0) {
                 this->write (msg);
@@ -436,7 +469,9 @@ void NXClientLib::processParseStderr()
                 + (*msgiter) + "'(end msg)");
 
         if (proxyData.encrypted && readyForProxy &&
-                ((*msgiter).find("NX> 999 Bye") != string::npos)) {
+                ((*msgiter).find("NX> 999 Bye") != string::npos)) 
+#ifdef NXCL_USE_NXSSH
+	{
 
             string switchCommand = "NX> 299 Switch connection to: ";
             stringstream ss;
@@ -478,6 +513,11 @@ void NXClientLib::processParseStderr()
                  _("SSH host key verification failed"));
             this->isFinished = true;
         }
+#else /* don't use nxssh, use nxproxy -stdin */
+	{
+		invokeProxy();
+	}
+#endif
     }
 }
 
@@ -580,21 +620,41 @@ string NXClientLib::parseSSH (string message)
         this->externalCallbacks->serverCapacitySignal();
         this->isFinished = true;
 
-    } else if
+    } 
+#ifdef NXCL_USE_NXSSH
+    else if
         (message.find ("NX> 204 Authentication failed.") != string::npos) {
 
         this->externalCallbacks->write
             (204, _("NX SSH Authentication Failed, finishing"));
         this->isFinished = true;
     }
+#endif
 
     if (message.find("NX> 710 Session status: running") != string::npos) {
 
         this->externalCallbacks->write
             (710, _("Session status is \"running\""));
+    }
+
+    // FF-FIXME: This is technically incorrect as the proxy is just ready once 1002 and 1006 have 
+    // been sent.
+    if (message.find("NX> 710 Session status: running") != string::npos) {
+        
+	//this->externalCallbacks->write
+        //    (1006, _("Session status is \"running\""));
+
+#ifdef NXCL_USE_NXSSH
         invokeProxy();
+#else
+	if (!proxyData.encrypted)
+        	invokeProxy();
+#endif
         session.wipeSessions();
-        rMessage = "bye\n";
+        if (proxyData.encrypted)
+	        rMessage = "bye\n";
+	else
+	        rMessage = "quit\n";
     }
 
     return rMessage;
@@ -700,18 +760,24 @@ void NXClientLib::invokeProxy()
     stringstream data;
  
     if (proxyData.encrypted) {
+#ifdef NXCL_USE_NXSSH
         data << "nx/nx" << x11Display << ",session=session,encryption=1,cookie="
             << proxyData.cookie
             << ",id=" << proxyData.id << ",listen=" 
             << proxyData.port << ":" << proxyData.display << "\n";
         // may also need shmem=1,shpix=1,font=1,product=...
+#else
+	data << "nx/nx" << x11Display << ",session=session,encryption=1,cookie="
+            << proxyData.cookie
+            << ",id=" << proxyData.id << ":" << proxyData.display << "\n";
+#endif
 
     } else {
-        // Not tested yet
+        // Not tested yet, FF-FIXME: Test
         data << "nx/nx" << x11Display << ",session=session,cookie=" << proxyData.cookie
-            << ",id=" << proxyData.id
-            // << ",connect=" << proxyData.server << ":" << proxyData.display
-            << ",listen=" << proxyData.port << ":" << proxyData.display
+            << ",connect=" << proxyData.server << ":" << proxyData.port
+            << ",id=" << proxyData.id << ":" << proxyData.display
+            //<< ",listen=" << proxyData.port << ":" << proxyData.display
             << "\n";
     }
 
@@ -726,10 +792,23 @@ void NXClientLib::invokeProxy()
     list<string> arguments;
     arguments.push_back("nxproxy"); // argv[0] has to be the program name
     arguments.push_back("-S");
+
     ss.str("");
-    ss << "options=" << nxdir;
-    ss << ":" << proxyData.display;
-    arguments.push_back(ss.str());	
+    ss << "nx/nx,options=" << nxdir << ":" << proxyData.display;
+
+    setenv("NX_DISPLAY", ss.str().c_str(), 1);
+
+#ifndef NXCL_USE_NXSSH
+    if (proxyData.encrypted)
+    {
+    	ss.str("");
+    	ss << this->nxsshProcess->getParentFD();
+	fprintf(stderr, "NX_COMMFD=%d", this->nxsshProcess->getParentFD());
+    	setenv("NX_COMMFD", ss.str().c_str(), 1);
+	// FF-FIXME: need to wait for 2 secs due to race condition with "bye" in buffer
+	sleep(2);
+    }
+#endif
 
     // Find a path for the nxproxy process using getPath()
     string nxproxyPath = this->getPath ("nxproxy");

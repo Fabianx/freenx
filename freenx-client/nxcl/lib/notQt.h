@@ -117,6 +117,18 @@ namespace nxcl {
 		pid_t getPid (void) { return this->pid; }
 		int getError (void) { return this->error; }
 		void setError (int e) { this->error = e; }
+		
+		int getParentFD() 
+		{ 
+			this->parentFD = this->parentToChild[1];
+			close(this->childToParent[0]);
+
+			// Create new pipes
+			pipe(this->parentToChild);
+			pipe(this->childToParent);
+
+			return this->parentFD;
+		}
 
 		/*!
 		 * Setter for the callbacks.
@@ -180,6 +192,11 @@ namespace nxcl {
 		 * Pointer to a callback object
 		 */
 		notQProcessCallbacks * callbacks;
+
+		/*! 
+		 * old parent FD for comm with child
+		 */
+		int parentFD;
 	};
 
 	/*!
