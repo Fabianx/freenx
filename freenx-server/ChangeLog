@@ -82,6 +82,7 @@ xx.01.2008 FreeNX 0.7.2
 	  Set ENABLE_ADVANCED_SESSION_CONTROL="1" and use session name
 	  like "add <sessionname>". Unfortunately the client returns an
 	  error, but the application is started anyway.
+	  The wish was granted for Bernhard Donaubauer.
 	  (fabianx@bat.berlios.de)
 
 14.10.2007 FreeNX 0.7.1 "Hip Hop Edition"
