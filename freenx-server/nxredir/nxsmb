@@ -8,9 +8,11 @@
 
 # turn on DEBUG?
 #set -x -v
+CUPS_BACKEND="/usr/lib/cups/backend/"
+PATH_LIB="/usr/lib/"
 
-NXREDIR_LIBRARY="/usr/lib/libnxredir.so.0"
-COMMAND_SMB="/usr/lib/cups/backend/smb"
+NXREDIR_LIBRARY="$PATH_LIB/libnxredir.so.0"
+COMMAND_SMB="$CUPS_BACKEND/smb"
 
 PORT=$(echo $DEVICE_URI | cut -d/ -f3 | cut -d@ -f2 | cut -d: -f2)
 PROTOCOL=$(echo $DEVICE_URI | cut -d/ -f4)

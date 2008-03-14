@@ -1,6 +1,7 @@
 #!/bin/sh
 
-NXREDIR_LIBRARY="/usr/lib/libnxredir.so.0"
+PATH_LIB="/usr/lib/"
+NXREDIR_LIBRARY="$PATH_LIB/libnxredir.so.0"
 
 if [ -z "$NXCUPS_PORT" -a -z "$NXSAMBA_PORT" ]
 then

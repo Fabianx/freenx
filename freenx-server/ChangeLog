@@ -93,6 +93,15 @@ xx.01.2008 FreeNX 0.7.2
 	  tightvnc vncpasswd part, which is necessary for FreeNX to work
 	  with standard vncviewer.
 	  (fabianx@bat.berlios.de)
+	* Added a Makefile so FreeNX can be build and installed via.
+	  $ make
+	  $ # edit nxloadconfig to point where it should install to
+	  $ make install
+	  Hereby FreeNX is installed to where nxloadconfig points and
+	  static paths in nxredir and nxsmb are adjusted accordingly.
+	  So if you want it to be in /usr/NX/ be sure to apply
+	  gentoo-nomachine.diff first or edit nxloadconfig manually.
+	  (fabianx@bat.berlios.de)
 
 14.10.2007 FreeNX 0.7.1 "Hip Hop Edition"
 	* Fixed the issue that makes fonts look tiny and unreadable by default 
