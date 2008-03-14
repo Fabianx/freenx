@@ -1,7 +1,7 @@
 .PHONY: all install
 
 SUBDIRS=nxredir nxviewer-passwd nxserver-helper
-PROGRAMS=nxcheckload.sample nxcups-gethost nxdesktop_helper nxdialog nxkeygen nxloadconfig nxnode nxnode-login nxprint nxserver nxserver-helper/nxserver-helper nxsetup nxviewer_helper nxviewer-passwd/nxpasswd/nxpasswd
+PROGRAMS=nxacl.sample nxcheckload.sample nxcups-gethost nxdesktop_helper nxdialog nxkeygen nxloadconfig nxnode nxnode-login nxprint nxserver nxserver-helper/nxserver-helper nxsetup nxviewer_helper nxviewer-passwd/nxpasswd/nxpasswd
 
 all:
 	( cd nxviewer-passwd; xmkmf; make Makefiles; make depend; cd ..)

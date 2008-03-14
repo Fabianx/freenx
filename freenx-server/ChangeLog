@@ -102,6 +102,11 @@ xx.01.2008 FreeNX 0.7.2
 	  So if you want it to be in /usr/NX/ be sure to apply
 	  gentoo-nomachine.diff first or edit nxloadconfig manually.
 	  (fabianx@bat.berlios.de)
+	* Added nxacl.sample component. If you copy nxacl.sample to
+	  $PATH_BIN/nxacl you can make as complex acl scenarios as you
+	  want. You have complete control over all data and can deny
+	  any session.
+	  (fabianx@bat.berlios.de)
 
 14.10.2007 FreeNX 0.7.1 "Hip Hop Edition"
 	* Fixed the issue that makes fonts look tiny and unreadable by default 

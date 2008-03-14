@@ -1243,6 +1243,25 @@ server_startrestore_session()
 			return 1
 	fi
 
+	if [ -x "$PATH_BIN/nxacl" ]
+	then
+			log 3 "Info: Using $PATH_BIN/nxacl to change session parameters or deny session."
+			NEW_PARAMS=$($PATH_BIN/nxacl "$CMDLINE")
+			if [ $? -ne 0 ]
+			then
+				echo_x "NX> 596 The session failed due to a nxacl policy setting:"
+				echo_x "$NEW_PARAMS"
+				return 1
+			fi
+
+			# check if the acl input did make sense
+			if [ -n "$NEW_PARAMS" ]
+			then
+				PARAMS=$NEW_PARAMS
+				CMDLINE=$PARAMS
+			fi
+	fi
+
 	# check if there is a suspended session, which we could resume
 	if [ "$ENABLE_AUTORECONNECT" = "1" -a "$ACTION" = "start" ]
 	then

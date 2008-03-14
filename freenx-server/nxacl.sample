@@ -1,0 +1,64 @@
+#!/bin/sh
+
+# Syntax: getparam <param>
+getparam()
+{
+	stringinstring "&$1=" "$CMDLINE" || return 1
+	echo "$CMDLINE" |  tr "&" "\n" | egrep "^"$1"=" | awk -F= '{ VAL=$2 } END { print VAL }'
+	return 0
+}
+
+# Syntax: changeparam <param> <value>
+# 	  Don't use & in value its the separator.
+
+changeparam()
+{
+	CMDLINE=$(echo "$CMDLINE" | tr "&" "\n" | sed "s&^$1=.*&$1=$2&g" | tr "\n" "&")
+}
+
+CMDLINE="$1"
+
+# Example 0: All allowed
+
+allow_all()
+{
+	# Parameters unchanged
+	echo "$CMDLINE"
+
+	# Session allowed
+	exit 0
+}
+
+# Example 1: Allow only unix-kde sessions, deny others
+
+allow_unix_kde()
+{
+	type=$(getparam type)
+	if [ "$type" != "unix-kde" ]
+	then
+		echo "Only sessions with type unix-kde are allowed."
+		exit 1
+	fi
+
+	allow_all
+}
+
+# Example 3: Allow only unix-kde sessions, change type always to unix-kde and virtualdesktop=1, rootless=0
+
+allow_unix_kde_2()
+{
+	change_param type unix-kde
+	change_param virtualdesktop 1
+	change_param rootless 0
+
+	allow_all
+}
+
+#
+# You can make as complex samples as you want, if you have one, I would be very interested!
+# Fabian
+#
+# Send it to: FreeNX-kNX@kde.org.
+#
+
+allow_all
