@@ -204,6 +204,11 @@
 #
 #ENABLE_ADVANCED_SESSION_CONTROL="0"
 
+# If you set ENABLE_SHOW_RUNNING_SESSIONS="0" then nxserver will only show
+# suspended sessions and you will not be able to resume or terminate a running 
+# session.
+#
+#ENABLE_SHOW_RUNNING_SESSIONS="1"
 
 #########################################################################
 # Logging directives

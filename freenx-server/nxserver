@@ -1428,6 +1428,7 @@ do
 			elif [ "$status" = "suspended,running" -o "$status" = "suspended" ] # since 1.5.0
 			then
 				status=$(echo $status | sed 's/,/$|^status=/g; s/suspended/Suspended/g; s/running/Running/g')
+				[ "$ENABLE_SHOW_RUNNING_SESSIONS" = "0" ] && status="Suspended"
 				session_list_user_suspended "$USER" "$status" "$(getparam geometry)" "$(getparam type)"
 			else
 				session_list_user "$USER" | log_tee
