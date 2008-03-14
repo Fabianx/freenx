@@ -77,6 +77,12 @@ xx.01.2008 FreeNX 0.7.2
 	  balance all services to processor cores 3 and 4.
 	  This wish was granted for Gregory Carter.
 	  (fabianx@bat.berlios.de)
+	* Added initial code to add an application to an already running
+	  rootless session.
+	  Set ENABLE_ADVANCED_SESSION_CONTROL="1" and use session name
+	  like "add <sessionname>". Unfortunately the client returns an
+	  error, but the application is started anyway.
+	  (fabianx@bat.berlios.de)
 
 14.10.2007 FreeNX 0.7.1 "Hip Hop Edition"
 	* Fixed the issue that makes fonts look tiny and unreadable by default 

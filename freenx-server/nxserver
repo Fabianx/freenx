@@ -1325,6 +1325,19 @@ server_startrestore_session()
 		SESS_DISPLAY=$(getparam display)
 		SERVER_HOST=$(getparam host)
 		[ -z "$SERVER_HOST" ] && SERVER_HOST="127.0.0.1"
+		
+		if [ "$ENABLE_ADVANCED_SESSION_CONTROL" = "1" ]
+		then
+			CMDLINE="$FULL_PARAMS"
+			case "$(getparam session)" in
+				"add "*)
+					server_nxnode_start --applicationsession "$USER" "$FULL_PARAMS"
+					echo_x "Quit"
+					echo_x "NX> 999 Quit"
+					exit 1
+				;;
+			esac
+		fi
 	fi
 
 	# now start the node

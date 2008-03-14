@@ -253,7 +253,7 @@ node_start_applications()
 	. /etc/profile
 	[ -f ~/.bash_profile ] && . ~/.bash_profile
 
-	mkdir -p "$USER_FAKE_HOME/.nx/C-$sess_id/pids/"
+	mkdir -p "$USER_FAKE_HOME/.nx/C-$sess_id/pids/apps/"
 
 	#
 	# Which application do we start?
@@ -330,7 +330,7 @@ node_start_applications()
 	NODE_APP_PID=$!
 	
 	mkdir -p "$USER_FAKE_HOME/.nx/C-$sess_id/pids/"
-	echo "$NODE_APP_PID" >"$USER_FAKE_HOME/.nx/C-$sess_id/pids/applications"
+	echo "$NODE_APP_PID" >"$USER_FAKE_HOME/.nx/C-$sess_id/pids/apps/$NODE_APP_PID"
 	wait $NODE_APP_PID
 
 	#
@@ -344,7 +344,7 @@ node_start_applications()
 		# or just wait until it finishes?
 		[ "$KILL_DEFAULT_X_WM" = "1" ] || wait $NODE_WM_PID
 	fi
-	rm -f "$USER_FAKE_HOME/.nx/C-$sess_id/pids/applications"
+	rm -f "$USER_FAKE_HOME/.nx/C-$sess_id/pids/apps/$NODE_APP_PID"
 
 	# Do not terminate agent in case of rootless agent mode.
 	# The agent times out after a while by itself anyway.
@@ -1205,6 +1205,16 @@ startsession()
 	ACCEPT="accept=$userip,"
 	[ "$userip" = "*" ] && ACCEPT=""
 
+if [ "$1" = "application" ]
+then
+	# This needs to be set, else nxagent is terminated
+	rootless="1"
+	virtualdesktop="0"
+	node_start_applications &
+	echo "NX> 596 Application $application started successfully."
+	return
+fi
+
 	OLD_UMASK=$(umask)
 	umask 0077
 
@@ -1439,6 +1449,9 @@ case "$1" in
 	--resumesession)
 		startsession "restore"
 	;;
+	--applicationsession)
+		startsession "application"
+	;;
 	--terminate)
 		cmd_node_terminate
 	;;
@@ -1499,13 +1512,13 @@ then
 		
 		if [ "$CMD" = "--startsession" -o "$CMD" = "--resumesession" ]
 		then
-			export SLAVE_PID=$$
-			( echo $CMDLINE | "$0" "$CMD"; kill $SLAVE_PID ) &
+			export SLAVE_PID="$$"
+			( echo "$CMDLINE" | "$0" "$CMD"; kill "$SLAVE_PID"; ) &
 			NODE_SESSION="$!"
 		else
 			DELIM=""
 			[ -n "$NODE_SESSION" ] && DELIM="$NODE_SESSION->$CMD"
-			( echo $CMDLINE | "$0" "$CMD" "$DELIM" ) &
+			( echo "$CMDLINE" | "$0" "$CMD" "$DELIM"; ) &
 		fi
 
 	done

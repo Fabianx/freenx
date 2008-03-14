@@ -197,6 +197,14 @@
 #
 #USE_PROCESSOR_TASKSET=""
 
+# If you set ENABLE_ADVANCED_SESSION_CONTROL="1" you can start a new application in an already
+# running rootless session by using "add <rest of name>" as session name.
+#
+# Note: The client will return a message on that.
+#
+#ENABLE_ADVANCED_SESSION_CONTROL="0"
+
+
 #########################################################################
 # Logging directives
 #########################################################################
