@@ -72,6 +72,11 @@ xx.01.2008 FreeNX 0.7.2
 	  (fabianx@bat.berlios.de)
 	* Added foomatic-ppdfile to the retested values.
 	  (fabianx@bat.berlios.de)
+	* Added possibility to balance all nx services to different cores
+	  using taskset. Use for example USE_PROCESSOR_TASKSET="3,4" to 
+	  balance all services to processor cores 3 and 4.
+	  This wish was granted for Gregory Carter.
+	  (fabianx@bat.berlios.de)
 
 14.10.2007 FreeNX 0.7.1 "Hip Hop Edition"
 	* Fixed the issue that makes fonts look tiny and unreadable by default 

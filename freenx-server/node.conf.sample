@@ -180,6 +180,23 @@
 #
 #ENABLE_PULLDOWN_MENU="1"
 
+
+# The option USE_PROCESSOR_TASKSET is for setting the CPU affinity of all
+# nx related processes.
+#
+# Note: To have for example startkde run on even another core, just specify:
+#
+# COMMAND_STARTKDE="taskset -c 2 -- startkde"
+#
+# FreeNX runs this option like: $COMMAND_TASKSET -cp "$USE_PROCESSOR_TASKSET" $$
+# 
+# So with $USE_PROCESSOR_TASKSET set to 3,4 it would balance the tasks to cores
+# 3 and 4.
+#
+# If this option is empty, no balance to cores is done.
+#
+#USE_PROCESSOR_TASKSET=""
+
 #########################################################################
 # Logging directives
 #########################################################################
@@ -474,6 +491,9 @@
 
 # The key that contains the name of the complete path of the 'x11vnc' command.
 #COMMAND_X11VNC=x11vnc
+
+# The key that contains the name of the complete path of the 'taskset' command.
+#COMMAND_TASKSET=taskset
 
 #########################################################################
 # Misc directives

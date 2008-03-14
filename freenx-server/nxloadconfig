@@ -116,6 +116,8 @@ ENABLE_DESKTOP_SHARING=1
 ENABLE_CLIPBOARD="both"
 ENABLE_PULLDOWN_MENU="1"
 
+USE_PROCESSOR_TASKSET=""
+
 # Logging directives
 
 NX_LOG_LEVEL=0
@@ -194,6 +196,7 @@ COMMAND_RDESKTOP="rdesktop"
 COMMAND_VNCVIEWER="vncviewer"
 COMMAND_VNCPASSWD="$PATH_BIN/nxpasswd"
 COMMAND_X11VNC="x11vnc"
+COMMAND_TASKSET="taskset"
 
 # Misc directives
 
@@ -321,6 +324,9 @@ then
 	[ -z "$KDE_PRINTRC" ] && which kde-config >/dev/null 2>&1 && KDE_PRINTRC=$(kde-config --localprefix 2>/dev/null)"/share/config/kdeprintrc"
 	[ -z "$KDE_PRINTRC" -o ! -r "$KDE_PRINTRC" ] && KDE_PRINTRC="$HOME/.kde/share/config/kdeprintrc"
 fi
+
+# Load balance to some other core if specified
+[ -n "$USE_PROCESSOR_TASKSET" ] && $COMMAND_TASKSET -cp "$USE_PROCESSOR_TASKSET" $$
 
 #########################################################################
 # Support for --check
