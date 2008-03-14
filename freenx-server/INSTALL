@@ -32,43 +32,76 @@ The real way:
 
 You must apply the gentoo-nomachine.diff and then copy the files to /usr/NX/bin and /usr/NX/lib.
 
-You can use the following schema to do the install to /usr/NX/:
+Get all sources from www.nomachine.com/sources.php
 
-NXPREFIX=/usr/NX
-mkdir -p ${NXPREFIX}/lib ${NXPREFIX}/bin
+Untar all sources, install all dependencies then do:
+
+  $ cd nx-X11
+  $ make World
+  $ cd ..
+  $ cd nxproxy
+  $ ./configure && make
 
 # Libraries
-cp -a nx-X11/lib/X11/libX11.so* ${NXPREFIX}/lib
-cp -a nx-X11/lib/Xext/libXext.so* ${NXPREFIX}/lib
-cp -a nx-X11/lib/Xrender/libXrender.so* ${NXPREFIX}/lib
-cp -a nxcomp/libXcomp.so* ${NXPREFIX}/lib
-cp -a nxcompext/libXcompext.so* ${NXPREFIX}/lib
+
+You can use the following schema to do the install to /usr/NX/:
+
+  $ NXPREFIX=/usr/NX
+  $ mkdir -p ${NXPREFIX}/lib ${NXPREFIX}/bin
+
+  $ cp -a nx-X11/lib/X11/libX11.so* ${NXPREFIX}/lib
+  $ cp -a nx-X11/lib/Xext/libXext.so* ${NXPREFIX}/lib
+  $ cp -a nx-X11/lib/Xrender/libXrender.so* ${NXPREFIX}/lib
+  $ cp -a nxcomp/libXcomp.so* ${NXPREFIX}/lib
+  $ cp -a nxcompext/libXcompext.so* ${NXPREFIX}/lib
 
 # binaries
-cp -a nx-X11/programs/Xserver/nxagent ${NXPREFIX}/bin
-cp -a nxproxy/nxproxy ${NXPREFIX}/bin
-cp -a nxdesktop/nxdesktop ${NXPREFIX}/bin
-cp -a nxviewer/nxviewer/nxviewer ${NXPREFIX}/bin
-cp -a nxviewer/nxpasswd/nxpasswd ${NXPREFIX}/bin
 
-# windows-keymaps for nxdesktop RDP-sessions and keyboard layout != us
-cd nxdesktop
-make installkeymaps
+  $ cp -a nx-X11/programs/Xserver/nxagent ${NXPREFIX}/bin
+  $ cp -a nxproxy/nxproxy ${NXPREFIX}/bin
+
+### Now comes the FreeNX part
+
+# build binaries and libs included in FreeNX distribution
+
+  $ cd freenx-<version>
+
+# nxredir
+
+  $ cd nxredir
+  $ make
+  $ cd ..
+
+# nxserver-helper
+  
+  $ cd nxserver-helper
+  $ make
+  $ cd ..
+
+# nxpasswd
+
+  $ cd nxviewer-passwd
+  $ xmkmf
+  $ make World
+  $ cd ..
+
+# install binaries included in FreeNX trunk
+
+  $ cd nxredir
+  $ make install
+  $ cd ..
+  $ cp -a nxserver-helper/nxserver-helper ${NXPREFIX}/bin
+  $ cp -a nxviewer-passwd/nxpasswd/nxpasswd ${NXPREFIX}/bin
 
 # scripts
-cp -a freenx*/nxnode ${NXPREFIX}/bin
-cp -a freenx*/nxserver ${NXPREFIX}/bin
-cp -a freenx*/nxsetup ${NXPREFIX}/bin
-cp -a freenx*/nxkeygen ${NXPREFIX}/bin
-cp -a freenx*/nxnode-login ${NXPREFIX}/bin
-cp -a freenx*/nxloadconfig ${NXPREFIX}/bin
-cp -a freenx*/nxprint ${NXPREFIX}/bin
-cp -a freenx*/nxclient ${NXPREFIX}/bin
+
+  $ cp nx* ${NXPREFIX}/bin
 
 # config file
-cp -a freenx*/node.conf.sample ${NXPREFIX}/etc/
 
-You should also install the nxclient from NoMachine or also copy the nxclient program from freenx. 
+  $ cp -a freenx*/node.conf.sample ${NXPREFIX}/etc/
+
+You should also install the nxclient from NoMachine or install Xdialog. 
 
 Then you need to run 'nxsetup --install' and follow the instructions given.
 

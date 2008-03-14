@@ -87,6 +87,8 @@ xx.01.2008 FreeNX 0.7.2
 	* Added option to disable the showing of running sessions.
 	  Set ENABLE_SHOW_RUNNING_SESSIONS="0" if you want that behaviour.
 	  (fabianx@bat.berlios.de)
+	* Updated documentation in INSTALL file.
+	  (fabianx@bat.berlios.de)
 
 14.10.2007 FreeNX 0.7.1 "Hip Hop Edition"
 	* Fixed the issue that makes fonts look tiny and unreadable by default 
