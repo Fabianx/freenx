@@ -269,6 +269,7 @@ if [ "$NXCONFIG_RETEST" = "1" ]
 then
 	{ ! mywhich "$COMMAND_XAUTH" && which xauth; } >/dev/null 2>&1 && COMMAND_XAUTH=$(which xauth)
 	{ ! mywhich "$COMMAND_NETCAT" && which nc; } >/dev/null 2>&1 && COMMAND_NETCAT=$(which nc)
+	{ ! mywhich "$COMMAND_FOOMATIC" && which foomatic-ppdfile; } >/dev/null 2>&1 && COMMAND_FOOMATIC=$(which foomatic-ppdfile)
 	{ ! mywhich "$PATH_BIN/nxdesktop"; } >/dev/null 2>&1 && ENABLE_EXTERNAL_NXDESKTOP="1"
 	{ ! mywhich "$PATH_BIN/nxviewer"; } >/dev/null 2>&1 && ENABLE_EXTERNAL_NXVIEWER="1"
 	{ ! mywhich "$COMMAND_VNCPASSWD" && which vncpasswd; } >/dev/null 2>&1 && COMMAND_VNCPASSWD=$(which vncpasswd)
