@@ -1,7 +1,7 @@
 --- nxloadconfig.old	2005-02-14 01:08:56.482546352 +0100
 +++ nxloadconfig	2005-02-14 01:09:40.109913984 +0100
 @@ -56,12 +56,12 @@
- NX_LICENSE="OS (GPL)"
+ NX_LICENSE="OS (GPL, using backend: %BACKEND%)"
  
  # Where can different nx components be found
 -NX_DIR=/usr

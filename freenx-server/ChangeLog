@@ -67,6 +67,9 @@ xx.01.2008 FreeNX 0.7.2
 	  With single sign on session startup is a lot faster. This is true 
 	  especially if there are many printers and files to be shared.
 	  (fabianx@bat.berlios.de)
+	* Added detection of backend version and added this output 
+	  to version string.
+	  (fabianx@bat.berlios.de)
 
 14.10.2007 FreeNX 0.7.1 "Hip Hop Edition"
 	* Fixed the issue that makes fonts look tiny and unreadable by default 
