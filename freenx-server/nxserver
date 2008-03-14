@@ -1249,8 +1249,7 @@ server_startrestore_session()
 			NEW_PARAMS=$($PATH_BIN/nxacl "$CMDLINE")
 			if [ $? -ne 0 ]
 			then
-				echo_x "NX> 596 The session failed due to a nxacl policy setting:"
-				echo_x "$NEW_PARAMS"
+				echo_x "NX> 596 The session failed due to a nxacl policy setting: $NEW_PARAMS"
 				return 1
 			fi
 

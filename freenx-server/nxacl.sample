@@ -47,9 +47,9 @@ allow_unix_kde()
 
 allow_unix_kde_2()
 {
-	change_param type unix-kde
-	change_param virtualdesktop 1
-	change_param rootless 0
+	changeparam type unix-kde
+	changeparam virtualdesktop 1
+	changeparam rootless 0
 
 	allow_all
 }
