@@ -52,7 +52,7 @@ fi
 # DO NOT TOUCH unless you REALLY know what you are doing
 #########################################################################
 
-NX_VERSION=2.1.0-72
+NX_VERSION=2.1.0-73-SVN
 NX_LICENSE="OS (GPL, using backend: %BACKEND%)"
 
 # Where can different nx components be found
