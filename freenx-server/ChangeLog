@@ -1,3 +1,10 @@
+XX.06.2008 FreeNX 0.7.3
+	* Opened the 0.7.3 development.
+	* Added logging of failed authentication attempts
+	  to auth.log via syslog (3). This can be disabled by 
+	  setting ENABLE_LOG_FAILED_LOGINS="0".
+	  (fabianx@bat.berlios.de)
+
 14.03.2008 FreeNX 0.7.2 "Priscilla Edition"
 	* Opened the 0.7.2 development.
 	* Fixed the display of local sessions to display only 

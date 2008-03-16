@@ -106,6 +106,15 @@
 #
 #ENABLE_SLAVE_MODE="0"
 
+# If ENABLE_LOG_FAILED_LOGINS="1" then failed login attempts are logged to the system
+# auth.log.
+#
+# This is useful in combination with tools like fail2ban.
+#
+# The default is to log failed login attemps via syslog (3).
+#
+#ENABLE_LOG_FAILED_LOGINS="1"
+
 #########################################################################
 # Restriction directives
 #########################################################################

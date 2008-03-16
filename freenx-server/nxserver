@@ -787,6 +787,10 @@ do
 			else
 				echo_x "NX> 404 ERROR: wrong password or login"
 				echo_x "NX> 999 Bye"
+				if [ "$ENABLE_LOG_FAILED_LOGINS" = "1" ]
+				then
+					logger -t nxserver -i -p auth.info "($(whoami)) Failed login for user=$USER from IP=$(echo $SSH_CLIENT | awk '{print $1}')"
+				fi
 				exit 1
 			fi
 		;;
