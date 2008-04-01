@@ -4,6 +4,8 @@ XX.06.2008 FreeNX 0.7.3
 	  to auth.log via syslog (3). This can be disabled by 
 	  setting ENABLE_LOG_FAILED_LOGINS="0".
 	  (fabianx@bat.berlios.de)
+	* Added -nolisten tcp to nxagent invocation.
+	  (fabianx@bat.berlios.de, idea by  pappy- (Gentoo))
 
 14.03.2008 FreeNX 0.7.2 "Priscilla Edition"
 	* Opened the 0.7.2 development.
