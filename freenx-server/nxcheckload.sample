@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # nxcheckload - sample script for calculation of the load for a node.
 #

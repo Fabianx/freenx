@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Syntax: getparam <param>
 getparam()

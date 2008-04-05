@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # nxdesktop_helper - Small helper for external rdesktop program as needed by NX 3.0.0 backend.
 #

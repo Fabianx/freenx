@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # nxviewer_helper - Small helper for external vncviewer program as needed by NX 3.0.0 backend.
 #

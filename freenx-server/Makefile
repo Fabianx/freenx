@@ -12,7 +12,7 @@ all:
 	done
 
 install:
-	. nxloadconfig;\
+	bash -c '. nxloadconfig;\
 	install -m755 -d $(DESTDIR)/$$PATH_BIN/ ;\
 	install -m755 -d $(DESTDIR)/$$PATH_LIB/ ;\
 	install -m755 -d $(DESTDIR)/$$NX_ETC_DIR/ ;\
@@ -23,4 +23,4 @@ install:
 	done;\
 	export PATH_BIN PATH_LIB CUPS_BACKEND NX_VERSION;\
 	install -m644 node.conf.sample $(DESTDIR)/$$NX_ETC_DIR/ ; \
-	make -C nxredir install
+	make -C nxredir install'

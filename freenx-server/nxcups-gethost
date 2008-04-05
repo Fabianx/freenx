@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Read the config file
 . $(PATH=$(cd $(dirname $0) && pwd):$PATH which nxloadconfig) --userconf

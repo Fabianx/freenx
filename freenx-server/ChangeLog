@@ -6,6 +6,9 @@ XX.06.2008 FreeNX 0.7.3
 	  (fabianx@bat.berlios.de)
 	* Added -nolisten tcp to nxagent invocation.
 	  (fabianx@bat.berlios.de, idea by  pappy- (Gentoo))
+	* Used bash for all tasks as 'sh' might be not what we want
+	  on standard ubuntu.
+	  (fabianx@bat.berlios.de, thx to tan (IRC))
 
 14.03.2008 FreeNX 0.7.2 "Priscilla Edition"
 	* Opened the 0.7.2 development.
