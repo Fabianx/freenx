@@ -1,5 +1,7 @@
 .PHONY: all install
 
+SHELL = /bin/bash
+
 SUBDIRS=nxredir nxviewer-passwd nxserver-helper
 PROGRAMS=nxacl.sample nxcheckload.sample nxcups-gethost nxdesktop_helper nxdialog nxkeygen nxloadconfig nxnode nxnode-login nxprint nxserver nxserver-helper/nxserver-helper nxsetup nxviewer_helper nxviewer-passwd/nxpasswd/nxpasswd
 
@@ -12,7 +14,7 @@ all:
 	done
 
 install:
-	bash -c '. nxloadconfig;\
+	. nxloadconfig;\
 	install -m755 -d $(DESTDIR)/$$PATH_BIN/ ;\
 	install -m755 -d $(DESTDIR)/$$PATH_LIB/ ;\
 	install -m755 -d $(DESTDIR)/$$NX_ETC_DIR/ ;\
@@ -23,4 +25,4 @@ install:
 	done;\
 	export PATH_BIN PATH_LIB CUPS_BACKEND NX_VERSION;\
 	install -m644 node.conf.sample $(DESTDIR)/$$NX_ETC_DIR/ ; \
-	make -C nxredir install'
+	make -C nxredir install
