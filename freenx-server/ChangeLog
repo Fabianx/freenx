@@ -9,6 +9,9 @@ XX.06.2008 FreeNX 0.7.3
 	* Used bash for all tasks as 'sh' might be not what we want
 	  on standard ubuntu.
 	  (fabianx@bat.berlios.de, thx to tan (IRC))
+	* Finally fixed mv not working for failed or terminated
+	  sessions.
+	  (fabianx@bat.berlios.de, Terje Andersen <terander@guard.zapto.org>)
 
 14.03.2008 FreeNX 0.7.2 "Priscilla Edition"
 	* Opened the 0.7.2 development.

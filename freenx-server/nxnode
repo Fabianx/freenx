@@ -154,8 +154,8 @@ node_terminate_session()
 	
 	[ "$SESSION_LOG_CLEAN" = "1" ] && rm -rf "$USER_FAKE_HOME/.nx/C-$1/"
 	
-	[ "$SESSION_LOG_CLEAN" = "0" -a "$2" = "failed" ] && mv "$USER_FAKE_HOME/.nx/C-$1/" "$USER_FAKE_HOME/.nx/F-C-$1/"
-	[ "$SESSION_LOG_CLEAN" = "0" -a "$2" != "failed" ] && mv "$USER_FAKE_HOME/.nx/C-$1/" "$USER_FAKE_HOME/.nx/T-C-$1/"
+	[ "$SESSION_LOG_CLEAN" = "0" -a "$2" = "failed" ] && mv "$USER_FAKE_HOME/.nx/C-$1/" "$USER_FAKE_HOME/.nx/F-C-$1"
+	[ "$SESSION_LOG_CLEAN" = "0" -a "$2" != "failed" ] && mv "$USER_FAKE_HOME/.nx/C-$1/" "$USER_FAKE_HOME/.nx/T-C-$1"
 }
 
 #
