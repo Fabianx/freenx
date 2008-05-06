@@ -12,6 +12,9 @@ XX.06.2008 FreeNX 0.7.3
 	* Finally fixed mv not working for failed or terminated
 	  sessions.
 	  (fabianx@bat.berlios.de, Terje Andersen <terander@guard.zapto.org>)
+	* Added patch from 2005 to enable reconnect to 24-bit display via
+	  32-bit or vice versa. Oops :)
+	  (Sunil <funtoos at yahoo.com> )
 
 14.03.2008 FreeNX 0.7.2 "Priscilla Edition"
 	* Opened the 0.7.2 development.
