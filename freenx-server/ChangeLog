@@ -15,6 +15,8 @@ XX.06.2008 FreeNX 0.7.3
 	* Added patch from 2005 to enable reconnect to 24-bit display via
 	  32-bit or vice versa. Oops :)
 	  (Sunil <funtoos at yahoo.com> )
+	* Added 3.2.0 as a backend version for nxloadconfig.
+	  (fabianx@bat.berlios.de)
 
 14.03.2008 FreeNX 0.7.2 "Priscilla Edition"
 	* Opened the 0.7.2 development.
