@@ -251,7 +251,7 @@ node_start_applications()
 	#
 	
 	. /etc/profile
-	[ -f ~/.bash_profile ] && . ~/.bash_profile
+	[ "$ENABLE_SOURCE_BASH_PROFILE" = "1" -a -f ~/.bash_profile ] && . ~/.bash_profile
 
 	mkdir -p "$USER_FAKE_HOME/.nx/C-$sess_id/pids/apps/"
 
