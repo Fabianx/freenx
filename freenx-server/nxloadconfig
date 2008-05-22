@@ -187,7 +187,7 @@ COMMAND_START_KDE=startkde
 COMMAND_START_GNOME=gnome-session
 COMMAND_START_CDE=cdwm
 COMMAND_XTERM=xterm
-COMMAND_XAUTH=/usr/X11R6/bin/xauth
+COMMAND_XAUTH=/usr/bin/xauth
 COMMAND_SMBMOUNT=smbmount
 COMMAND_SMBUMOUNT=smbumount
 COMMAND_SMBMOUNT_CIFS=/sbin/mount.cifs
@@ -277,6 +277,8 @@ function mywhich()
 if [ "$NXCONFIG_RETEST" = "1" ]
 then
 	{ ! mywhich "$COMMAND_XAUTH" && which xauth; } >/dev/null 2>&1 && COMMAND_XAUTH=$(which xauth)
+	# fallback to X11R6 path
+	{ ! mywhich "$COMMAND_XAUTH" && test -f /usr/X11R6/bin/xauth; } >/dev/null 2>&1 && COMMAND_XAUTH=/usr/X11R6/bin/xauth
 	{ ! mywhich "$COMMAND_NETCAT" && which nc; } >/dev/null 2>&1 && COMMAND_NETCAT=$(which nc)
 	{ ! mywhich "$COMMAND_FOOMATIC" && which foomatic-ppdfile; } >/dev/null 2>&1 && COMMAND_FOOMATIC=$(which foomatic-ppdfile)
 	{ ! mywhich "$PATH_BIN/nxdesktop"; } >/dev/null 2>&1 && ENABLE_EXTERNAL_NXDESKTOP="1"

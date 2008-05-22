@@ -476,7 +476,7 @@
 
 # The key that contains the name of the complete path of command name
 # 'xauth'.
-#COMMAND_XAUTH=/usr/X11R6/bin/xauth
+#COMMAND_XAUTH=/usr/bin/xauth
 
 # The key that contains the name of the complete path of command name
 # 'smbmount'.
