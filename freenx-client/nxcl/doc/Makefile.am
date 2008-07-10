@@ -2,8 +2,6 @@ CLEANFILES = *~
 
 DOXYFILE = Doxyfile
 
-docdir = $(prefix)/doc/$(PACKAGE)-$(VERSION)
-
 EXTRA_DIST = html
 
 SEDCMD1 = s/$$title/GNU nxcl documentation version $(VERSION)/g

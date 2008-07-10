@@ -30,6 +30,7 @@ extern "C" {
 #include <dbus/dbus.h>
 #include <X11/Xlib.h>
 }
+#include <stdlib.h>
 
 using namespace nxcl;
 using namespace std;

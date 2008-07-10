@@ -29,6 +29,7 @@ extern "C" {
 #include <sys/socket.h>	
 #include <signal.h>
 }
+#include <stdlib.h>
 
 #include "../config.h"
 #include "notQt.h"

@@ -24,6 +24,8 @@ macx {
 DEPENDPATH	+= $(QTDIR)/include
 
 
-QT += ui xml
+QT += gui xml
 
 TARGET		= qtnx
+target.path = $$[QT_INSTALL_BINS]
+INSTALLS += target

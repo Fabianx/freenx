@@ -43,6 +43,8 @@ extern "C" {
     #include <sys/stat.h>
     #include <unistd.h>
 }
+#include <stdlib.h>
+#include <string.h>
 
 /*
  * On the location of nxproxy and nxssh binaries

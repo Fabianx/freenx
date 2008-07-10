@@ -5,7 +5,7 @@ AC_CONFIG_SRCDIR(nxcl/nxcl.cpp)
 AC_REVISION([$Revision: 1.3 $])
 AC_PREFIX_DEFAULT(/usr/local)
 
-AM_INIT_AUTOMAKE([1.10 foreign])
+AM_INIT_AUTOMAKE([1.9 foreign])
 
 AM_CONFIG_HEADER(config.h)
 AM_MAINTAINER_MODE
