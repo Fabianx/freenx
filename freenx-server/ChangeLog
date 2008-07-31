@@ -23,6 +23,8 @@ XX.06.2008 FreeNX 0.7.3
 	* Added /usr/bin/xauth as default key and used /usr/X11R6/bin/xauth as
 	  fallback.
 	  (fabianx@bat.berlios.de)
+	* Fixed Makefile to stop on all errors.
+	  (Idea by Hai Zaar <haizaar@gmail.com>, fabianx@bat.berlios.de)
 
 14.03.2008 FreeNX 0.7.2 "Priscilla Edition"
 	* Opened the 0.7.2 development.

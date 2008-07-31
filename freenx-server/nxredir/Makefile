@@ -11,20 +11,19 @@ clean:
 	rm -f $(LIBNAME)
 	rm -f *.o
 
+ifneq ($(NX_VERSION),)
 install: all
-	# install and possibly patch paths gotten by nxloadconfig
-	if [ -n "$$NX_VERSION" ]; \
-	then \
-		install -m755 $(LIBNAME) $(DESTDIR)/$$PATH_LIB/ ;\
-		install -m755 nxredir $(DESTDIR)/$$PATH_BIN/ ;\
-		install -m755 nxsmb $(DESTDIR)/$$CUPS_BACKEND/ ;\
-		perl -pi -e "s,PATH_LIB=.*,PATH_LIB=\"$$PATH_LIB\",g" $(DESTDIR)/$$PATH_BIN/nxredir ;\
-		perl -pi -e "s,PATH_LIB=.*,PATH_LIB=\"$$PATH_LIB\",g" $(DESTDIR)/$$CUPS_BACKEND/nxsmb ;\
-		perl -pi -e "s,CUPS_BACKEND=.*,CUPS_BACKEND=\"$$CUPS_BACKEND\",g" $(DESTDIR)/$$CUPS_BACKEND/nxsmb ;\
-	else \
-		install -m755 libnxredir.so.0 $(DESTDIR)/usr/lib ;\
-		install -m755 nxredir $(DESTDIR)/usr/bin ;\
-		install -m755 nxsmb $(DESTDIR)/usr/lib/cups/backend/ ;\
-	fi
+	install -m755 $(LIBNAME) $(DESTDIR)/$$PATH_LIB/
+	install -m755 nxredir $(DESTDIR)/$$PATH_BIN/
+	install -m755 nxsmb $(DESTDIR)/$$CUPS_BACKEND/
+	perl -pi -e "s,PATH_LIB=.*,PATH_LIB=\"$$PATH_LIB\",g" $(DESTDIR)/$$PATH_BIN/nxredir
+	perl -pi -e "s,PATH_LIB=.*,PATH_LIB=\"$$PATH_LIB\",g" $(DESTDIR)/$$CUPS_BACKEND/nxsmb
+	perl -pi -e "s,CUPS_BACKEND=.*,CUPS_BACKEND=\"$$CUPS_BACKEND\",g" $(DESTDIR)/$$CUPS_BACKEND/nxsmb
+else
+install: all
+	install -m755 libnxredir.so.0 $(DESTDIR)/usr/lib
+	install -m755 nxredir $(DESTDIR)/usr/bin
+	install -m755 nxsmb $(DESTDIR)/usr/lib/cups/backend/
+endif
 
 .PHONY: clean install
