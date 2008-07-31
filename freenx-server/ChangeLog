@@ -25,6 +25,10 @@ XX.06.2008 FreeNX 0.7.3
 	  (fabianx@bat.berlios.de)
 	* Fixed Makefile to stop on all errors.
 	  (Idea by Hai Zaar <haizaar@gmail.com>, fabianx@bat.berlios.de)
+	* Changed the default for ENABLE_PASSDB_AUTHENTICATION. If you had
+	  added a user with different password via --adduser consider
+	  re-activating this option in node.conf.
+	  (fabianx@bat.berlios.de)
 
 14.03.2008 FreeNX 0.7.2 "Priscilla Edition"
 	* Opened the 0.7.2 development.

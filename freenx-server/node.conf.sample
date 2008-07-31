@@ -63,7 +63,7 @@
 #ENABLE_USERMODE_AUTHENTICATION="0"
 
 # This adds the passdb to the possible authentication methods
-#ENABLE_PASSDB_AUTHENTICATION="1"
+#ENABLE_PASSDB_AUTHENTICATION="0"
 
 # This adds SSH to the possible authentication methods. For it to work sshd
 # must be set up at localhost accepting password authentication.
