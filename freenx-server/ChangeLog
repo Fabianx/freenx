@@ -29,6 +29,10 @@ XX.06.2008 FreeNX 0.7.3
 	  added a user with different password via --adduser consider
 	  re-activating this option in node.conf.
 	  (fabianx@bat.berlios.de)
+	* Added constraints for passdb based commands. They are only available
+	  when ENABLE_PASSDB_AUTHENTICATION="1" else a friendly error message
+	  is shown. This should help with users using old tutorials.
+	  (fabianx@bat.berlios.de)
 
 14.03.2008 FreeNX 0.7.2 "Priscilla Edition"
 	* Opened the 0.7.2 development.

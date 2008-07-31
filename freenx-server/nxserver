@@ -1595,7 +1595,7 @@ cmd_usage()
 
 cmd_abort()
 {
-	echo "NX> 500" "$@" 1>&2
+	echo -e "NX> 500" "$@" 1>&2
 	echo "NX> 999 Bye" 1>&2
 	exit 1
 }
@@ -1626,6 +1626,16 @@ cmd_passwd()
 	CMD_ENC_PASS=$(passdb_get_crypt_pass "$CMD_NEWPASS")
 	passdb_chpass "$CMD_CHUSER" "$CMD_ENC_PASS"
 	echo "Password changed."
+}
+
+cmd_checkpassdb()
+{
+	if [ "$ENABLE_PASSDB_AUTHENTICATION" != "1" ]
+	then
+		cmd_abort "Error: The passdb function is not activated in node.conf.\n\nMost probably your FreeNX setup will work out of the box without this\nfunctionality and you've been misleaded by an old tutorial or old\ndocumentation to do this step.\n\nIf however you really need this functionality, just set\nENABLE_PASSDB_AUTHENTICATION=\"1\" in node.conf.\n"
+	fi
+
+	return 0
 }
 
 cmd_adduser()
@@ -1880,15 +1890,19 @@ case $CMD in
 	# User functions ...
 	# 
 	--passwd)
+		cmd_checkpassdb
 		cmd_passwd "$@"
 	;;
 	--adduser|--useradd)
+		cmd_checkpassdb
 		cmd_adduser "$@"
 	;;
 	--deluser|--userdel)
+		cmd_checkpassdb
 		cmd_deluser "$@"
 	;;
 	--listuser|--userlist)
+		cmd_checkpassdb
 		cmd_listuser
 	;;
 	--start)
