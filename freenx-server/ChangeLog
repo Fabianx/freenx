@@ -66,7 +66,9 @@ XX.06.2008 FreeNX 0.7.3
 	* Allow passwords with '\' by changing read -s to read -r -s.
 	  (Closes: #10699)
 	  (Patch by rpfuller@bat.berlios.de, fabianx@bat.berlios.de)
-
+	* Allow passwords with special chars by using new url_decode on
+	  agent_password. (Closes: #10248)
+	  (fabianx@bat.berlios.de)
 
 14.03.2008 FreeNX 0.7.2 "Priscilla Edition"
 	* Opened the 0.7.2 development.

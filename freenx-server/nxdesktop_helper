@@ -33,6 +33,10 @@ url_decode()
 # Remove urlencoding
 windows_app=$(url_decode "$windows_app")
 
+# we need to do this twice as nxclient is doing this twice ... uh ...
+agent_password=$(url_decode "$agent_password")
+agent_password=$(url_decode "$agent_password")
+
 # setup commandline
 set -- -u "$agent_user" -k "$agent_keyboard" -d "$agent_domain" -f -s "$windows_app" $AGENT_EXTRA_OPTIONS_RDP "$agent_server"
 
