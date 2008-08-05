@@ -326,6 +326,7 @@ node_start_applications()
 	fi
 
 	echo "Xft.dpi: 96" | DISPLAY=:$display xrdb -merge >>"$USER_FAKE_HOME/.nx/C-$sess_id/session" 2>&1
+	[ -d /etc/X11/Xresources ] && xrdb -display :$display -merge /etc/X11/Xresources/* >>"$USER_FAKE_HOME/.nx/C-$sess_id/session" 2>&1
 
 	#
 	# Startup the application

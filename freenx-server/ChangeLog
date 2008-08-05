@@ -45,10 +45,12 @@ XX.06.2008 FreeNX 0.7.3
 	  (Based on patch by Ubuntu FreeNX-Team, fabianx@bat.berlios.de)
 	* Use :0.0 if mirrorhost is 127.0.0.1 and add -localhost for 
 	  enhanced security. Also increase sleep timeout for slow machines.
-	  (Based on Patch by Jeremy Wilkins, fabianx@bat.berlios.de)
+	  (Based on Patch by Jeremy Wilkins <wjeremy@shaw.ca>, fabianx@bat.berlios.de)
 	* Allow RDP "Run application" sessions to work correctly.
 	  (David Corral < davefury@gmail.com > & the Silice Telecom staff,
 	   fabianx@bat.berlios.de)
+	* Merge Xresources on startup of session.
+	  (Jeremy Wilkins <wjeremy@shaw.ca>)
 
 14.03.2008 FreeNX 0.7.2 "Priscilla Edition"
 	* Opened the 0.7.2 development.
