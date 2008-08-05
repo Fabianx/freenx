@@ -1,0 +1,10 @@
+The unlock buttons on Users and Groups or Network are greyed out and un-accessible. Tried running from a term 'sudo users-admin' with the same results.
+
+To correct the problem follow this steps:
+ - Copy nx-session-launcher and nx-session-launcher-suid to /usr/bin
+ - Execute $ chown nx /usr/bin/nx-session-launcher-suid
+ - Execute $ chmod 4755 /usr/bin/nx-session-launcher-suid
+ - Copy ConsoleKit-NX.conf to /etc/dbus-1/system.d/
+ - Reload dbus by issuing /etc/init.d/dbus reload
+ - Edit /etc/nxserver/node.conf and change '#COMMAND_START_GNOME=gnome-session'
+     to 'COMMAND_START_GNOME=/usr/bin/nx-session-launcher-suid gnome-session'
