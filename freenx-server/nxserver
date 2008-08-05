@@ -31,6 +31,62 @@ echo "$CMDLINE" |  tr "&" "\n" | egrep "^"$1"=" | awk -F= '{ VAL=$2 } END { prin
 return 0
 }
 
+############### PACKAGE log.bm #######################
+#
+# Library of log functions (outsource)
+#
+
+# Loglevels:
+# 1: Errors
+# 2: Warnings
+# 3: Important information
+# 4: Server - Client communication
+# 5: Information
+# 6: Debugging information
+# 7: stderror-channel of some applications
+
+log()
+{
+	[ "$NX_LOG_LEVEL" -ge "$1" -a -w "$NX_LOGFILE" ] && shift && echo "$@" >> "$NX_LOGFILE"
+}
+
+# Log in a way that is secure for passwords / cookies / ...
+
+echo_secure()
+{
+	echo "$@ " | $COMMAND_PERL -pi -e 's/--cookie=".+?"/--cookie="******"/g; s/--agent_password=".+?"/agent_password="******"/g; s/--password=".+?"/password="******"/g; s/cookie=.+?&/cookie=******&/g; s/agent_password=.+?&/agent_password=******&/g; s/password=.+?&/password=******&/g;'
+}
+
+log_secure()
+{
+	if [ "$NX_LOG_SECURE" = "0" ]
+	then
+		log "$@"
+	else
+		[ "$NX_LOG_LEVEL" -ge "$1" -a -w "$NX_LOGFILE" ] && shift && echo_secure "$@" >> "$NX_LOGFILE"
+	fi
+}
+
+log_tee()
+{
+	[ "$NX_LOG_LEVEL" -ge "4" -a -w "$NX_LOGFILE" ] && exec tee -a "$NX_LOGFILE"
+	[ "$NX_LOG_LEVEL" -ge "4" -a -w "$NX_LOGFILE" ] || exec cat -
+}
+
+log_error()
+{
+	[ "$NX_LOG_LEVEL" -ge "7" -a -w "$NX_LOGFILE" ] && exec tee -a "$NX_LOGFILE"
+	[ "$NX_LOG_LEVEL" -ge "7" -a -w "$NX_LOGFILE" ] || exec cat - 
+}
+
+echo_x()
+{
+	log "4" "$@"
+	echo "$@"
+}
+
+
+
 
 ############### PACKAGE passdb.bm #######################
 #
@@ -445,56 +501,6 @@ setup_usermode_auth()
 }
 
 setup_usermode_auth
-
-# Loglevels:
-# 1: Errors
-# 2: Warnings
-# 3: Important information
-# 4: Server - Client communication
-# 5: Information
-# 6: Debugging information
-# 7: stderror-channel of some applications
-
-log()
-{
-	[ "$NX_LOG_LEVEL" -ge "$1" -a -w "$NX_LOGFILE" ] && shift && echo "$@" >> "$NX_LOGFILE"
-}
-
-# Log in a way that is secure for passwords / cookies / ...
-
-echo_secure()
-{
-	echo "$@ " | $COMMAND_PERL -pi -e 's/--cookie=".+?"/--cookie="******"/g; s/--agent_password=".+?"/agent_password="******"/g; s/--password=".+?"/password="******"/g; s/cookie=.+?&/cookie=******&/g; s/agent_password=.+?&/agent_password=******&/g; s/password=.+?&/password=******&/g;'
-}
-
-log_secure()
-{
-	if [ "$NX_LOG_SECURE" = "0" ]
-	then
-		log "$@"
-	else
-		[ "$NX_LOG_LEVEL" -ge "$1" -a -w "$NX_LOGFILE" ] && shift && echo_secure "$@" >> "$NX_LOGFILE"
-	fi
-}
-
-log_tee()
-{
-	[ "$NX_LOG_LEVEL" -ge "4" -a -w "$NX_LOGFILE" ] && exec tee -a "$NX_LOGFILE"
-	[ "$NX_LOG_LEVEL" -ge "4" -a -w "$NX_LOGFILE" ] || exec cat -
-}
-
-log_error()
-{
-	[ "$NX_LOG_LEVEL" -ge "7" -a -w "$NX_LOGFILE" ] && exec tee -a "$NX_LOGFILE"
-	[ "$NX_LOG_LEVEL" -ge "7" -a -w "$NX_LOGFILE" ] || exec cat - 
-}
-
-echo_x()
-{
-	log "4" "$@"
-	echo "$@"
-}
-
 
 #
 # needed for slave mode
