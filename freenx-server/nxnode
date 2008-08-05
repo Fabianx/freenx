@@ -1129,7 +1129,7 @@ startsession()
 		export agent_server
 		export agent_domain
 		agent_keyboard=""
-		[ "ENABLE_EXTERNAL_NXDESKTOP_KEYBOARD" = "1" ] && agent_keyboard=$(echo "$keyboard" | cut -d'/' -f2)
+		[ "$ENABLE_EXTERNAL_NXDESKTOP_KEYBOARD" = "1" ] && agent_keyboard=$(echo "$keyboard" | cut -d'/' -f2)
 		export agent_keyboard
 		export NXSESSION_DIRECTORY
 		export AGENT_EXTRA_OPTIONS_RFB

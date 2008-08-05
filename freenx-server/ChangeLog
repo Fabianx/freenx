@@ -36,6 +36,8 @@ XX.06.2008 FreeNX 0.7.3
 	* Added unix-console patch. Added default handler as unix-default with
 	  a fallback to xterm,
 	  (Idea by Jens Hatlak <jh@junetz.de>, fabianx@bat.berlios.de)
+	* Fixed external rdesktop keyboards: A "$" was missing.
+	  (Bug by Phil Stricker <stril@gmx.de>, fabianx@bat.berlios.de)
 
 14.03.2008 FreeNX 0.7.2 "Priscilla Edition"
 	* Opened the 0.7.2 development.
