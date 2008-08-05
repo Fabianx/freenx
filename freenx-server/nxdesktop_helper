@@ -11,6 +11,9 @@
 
 [ -z "$COMMAND_RDESKTOP" ] && COMMAND_RDESKTOP="rdesktop"
 
+# Workaround for NXClient 3.2.0, sending wrong keyboard layout
+[ "$agent_keyboard" = "ch" ] && agent_keyboard="de-ch"
+
 # setup commandline
 set -- -f -u "$agent_user" -k "$agent_keyboard" -d "$agent_domain" $AGENT_EXTRA_OPTIONS_RDP "$agent_server"
 
