@@ -1613,6 +1613,13 @@ cmd_abort()
 	exit 1
 }
 
+cmd_abort_success()
+{
+	echo "NX> 500" "$@" 1>&2
+	echo "NX> 999 Bye" 1>&2
+	exit 0
+}
+
 cmd_user_passwd()
 {
 	echo "NX> 100 NXSERVER - Version $NX_VERSION $NX_LICENSE"
@@ -1682,14 +1689,14 @@ cmd_listuser()
 cmd_start()
 {
 	
-	[ -f $NX_HOME_DIR/.ssh/$SSH_AUTHORIZED_KEYS ] && cmd_abort "ERROR: Service already running"
+	[ -f $NX_HOME_DIR/.ssh/$SSH_AUTHORIZED_KEYS ] && cmd_abort_success "ERROR: Service already running"
 	mv $NX_HOME_DIR/.ssh/$SSH_AUTHORIZED_KEYS.disabled $NX_HOME_DIR/.ssh/$SSH_AUTHORIZED_KEYS
 	echo "NX> 122 Service started"
 }
 
 cmd_stop()
 {
-	[ -f $NX_HOME_DIR/.ssh/$SSH_AUTHORIZED_KEYS ] || cmd_abort "Service was already stopped"
+	[ -f $NX_HOME_DIR/.ssh/$SSH_AUTHORIZED_KEYS ] || cmd_abort_success "Service was already stopped"
 	mv $NX_HOME_DIR/.ssh/$SSH_AUTHORIZED_KEYS $NX_HOME_DIR/.ssh/$SSH_AUTHORIZED_KEYS.disabled
 	echo "NX> 123 Service stopped"
 }

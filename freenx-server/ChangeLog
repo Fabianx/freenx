@@ -69,6 +69,9 @@ XX.06.2008 FreeNX 0.7.3
 	* Allow passwords with special chars by using new url_decode on
 	  agent_password. (Closes: #10248)
 	  (fabianx@bat.berlios.de)
+	* Fixed start/stop exit codes.
+	  (Patch by Gentoo Portage, fabianx@bat.berlios.de)
+	  
 
 14.03.2008 FreeNX 0.7.2 "Priscilla Edition"
 	* Opened the 0.7.2 development.
