@@ -41,6 +41,8 @@ XX.06.2008 FreeNX 0.7.3
 	* Added workaround for "ch" keyboard layout to nxdesktop_helper, 
 	  which NXClient 3.2.0 means as de-ch.
 	  (Bug by Phil Stricker <stril@gmx.de>, fabianx@bat.berlios.de)
+	* Added clean target to Makefile.
+	  (Based on patch by Ubuntu FreeNX-Team, fabianx@bat.berlios.de)
 
 14.03.2008 FreeNX 0.7.2 "Priscilla Edition"
 	* Opened the 0.7.2 development.

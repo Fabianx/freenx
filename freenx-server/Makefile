@@ -25,6 +25,14 @@ nxenv_install:
 	install -m644 node.conf.sample $(DESTDIR)/$$NX_ETC_DIR/
 	$(MAKE) -C nxredir install
 
+clean:
+	make -C nxviewer-passwd clean
+	for i in $(SUBDIRS) ; \
+	do\
+		echo "making" clean "in $$i..."; \
+	        $(MAKE) -C $$i clean || exit 1;\
+	done
+
 install:
 	. nxloadconfig &&\
 	export PATH_BIN PATH_LIB CUPS_BACKEND NX_VERSION &&\
