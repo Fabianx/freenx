@@ -33,6 +33,9 @@ XX.06.2008 FreeNX 0.7.3
 	  when ENABLE_PASSDB_AUTHENTICATION="1" else a friendly error message
 	  is shown. This should help with users using old tutorials.
 	  (fabianx@bat.berlios.de)
+	* Added unix-console patch. Added default handler as unix-default with
+	  a fallback to xterm,
+	  (Idea by Jens Hatlak <jh@junetz.de>, fabianx@bat.berlios.de)
 
 14.03.2008 FreeNX 0.7.2 "Priscilla Edition"
 	* Opened the 0.7.2 development.
