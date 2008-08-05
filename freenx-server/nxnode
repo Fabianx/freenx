@@ -1128,6 +1128,7 @@ startsession()
 		export agent_password
 		export agent_server
 		export agent_domain
+		export windows_app=$application
 		agent_keyboard=""
 		[ "$ENABLE_EXTERNAL_NXDESKTOP_KEYBOARD" = "1" ] && agent_keyboard=$(echo "$keyboard" | cut -d'/' -f2)
 		export agent_keyboard

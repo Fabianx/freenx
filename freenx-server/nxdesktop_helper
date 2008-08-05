@@ -14,8 +14,27 @@
 # Workaround for NXClient 3.2.0, sending wrong keyboard layout
 [ "$agent_keyboard" = "ch" ] && agent_keyboard="de-ch"
 
+# URL Decode
+url_decode()
+{
+	# Translate spaces first (they cause trouble)
+	s=$(echo $1 | tr '+' ' ')
+	s=$(echo ${s} | sed 's/%20/ /g')
+	for charno in $(echo ${s} | grep -o '%[0-9A-Fa-f]\{2\}' | tr -d '%' | uniq)
+	do
+		#... and then replace them
+		char=$(printf "\x${charno}") #this is the actual character
+		sedstr="s/%${charno}/\\${char}/g" # the char will need to be escaped
+		s=$(echo "${s}" | sed ${sedstr})
+	done
+	echo "${s}"
+}
+
+# Remove urlencoding
+windows_app=$(url_decode "$windows_app")
+
 # setup commandline
-set -- -f -u "$agent_user" -k "$agent_keyboard" -d "$agent_domain" $AGENT_EXTRA_OPTIONS_RDP "$agent_server"
+set -- -u "$agent_user" -k "$agent_keyboard" -d "$agent_domain" -f -s "$windows_app" $AGENT_EXTRA_OPTIONS_RDP "$agent_server"
 
 if [ -n "$agent_password" ]
 then
