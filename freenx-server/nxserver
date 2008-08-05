@@ -1432,7 +1432,11 @@ do
 			if [ "$ENCRYPTION" = "1" ] 
 			then 
 				let PROXY_DISPLAY=$SESS_DISPLAY+4000
-				exec $COMMAND_NETCAT $SERVER_HOST $PROXY_DISPLAY
+				$COMMAND_NETCAT $SERVER_HOST $PROXY_DISPLAY
+				RC=$?
+				# kill our parent sshd process
+				kill $PPID
+				exit $RC
 			else
 				echo_x "NX> 1001 Bye."
 			fi

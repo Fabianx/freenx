@@ -56,6 +56,9 @@ XX.06.2008 FreeNX 0.7.3
 	  (marceloshima@gmail.com, fabianx@bat.berlios.de)
 	* Moved logging functions to a more appropriate place.
 	  (fabianx@bat.berlios.de)
+	* Finally fixed the bug when NX Client was stopped on "Negotiating
+	  link parameters" and failed session after first session suspend.
+	  (fabianx@bat.berlios.de)
 
 14.03.2008 FreeNX 0.7.2 "Priscilla Edition"
 	* Opened the 0.7.2 development.
