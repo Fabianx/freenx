@@ -51,6 +51,9 @@ XX.06.2008 FreeNX 0.7.3
 	   fabianx@bat.berlios.de)
 	* Merge Xresources on startup of session.
 	  (Jeremy Wilkins <wjeremy@shaw.ca>)
+	* Added nx-session-launcher from Ubuntu FreeNX-Team to use FreeNX with
+	  ConsoleKit.
+	  (marceloshima@gmail.com, fabianx@bat.berlios.de)
 
 14.03.2008 FreeNX 0.7.2 "Priscilla Edition"
 	* Opened the 0.7.2 development.

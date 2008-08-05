@@ -1,0 +1,31 @@
+#!/usr/bin/env python
+
+import os
+import gobject
+import dbus
+import sys
+
+bus = dbus.SystemBus ()
+
+manager_obj = bus.get_object ('org.freedesktop.ConsoleKit', '/org/freedesktop/ConsoleKit/Manager')
+manager = dbus.Interface (manager_obj, 'org.freedesktop.ConsoleKit.Manager')
+
+params = dbus.Array ([], signature = "(sv)")
+params.append (("unix-user", dbus.Int32 (os.getuid(), variant_level=1)))
+params.append (("session-type", dbus.String ("nx", variant_level=1)))
+params.append (("x11-display", dbus.String (os.environ['DISPLAY'], variant_level=1)))
+params.append (("is-local", dbus.Boolean (True, variant_level=1)))
+
+cookie = manager.OpenSessionWithParameters (params)
+os.environ['XDG_SESSION_COOKIE'] = cookie
+
+current_session = manager.GetSessionForCookie (cookie)
+session_obj = bus.get_object ('org.freedesktop.ConsoleKit', current_session)
+session = dbus.Interface (session_obj, 'org.freedesktop.ConsoleKit.Session')
+
+properties = dbus.Interface (session_obj, 'org.freedesktop.DBus.Properties')
+properties.Set ("org.freedesktop.DBus.Properties", "active", dbus.Boolean (True, variant_level=1))
+
+os.setreuid(os.getuid(), os.getuid())
+os.spawnvp(os.P_WAIT, sys.argv[1], [])
+
