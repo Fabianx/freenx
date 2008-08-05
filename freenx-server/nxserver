@@ -962,6 +962,7 @@ server_nxnode_start_wait()
 						# closed his side of the channel and this will lead to not 
 						# closed sessions.
 						SERVER_CHANNEL=0
+					;;
 				esac
 			;;
 			"NX> 1004"*)
@@ -992,8 +993,9 @@ server_nxnode_start_wait()
 	[ -e "/tmp/.nX$SESS_DISPLAY-lock" ] && rm -f /tmp/.nX$SESS_DISPLAY-lock
 
 	nxnode_login_stop_slave
-
-	else # $1 = restore
+	
+	# $1 = restore
+	else
 	
 	KILL_WAIT_PID=1
 	SERVER_CHANNEL=1
@@ -1034,7 +1036,8 @@ server_nxnode_start_wait()
 	
 	nxnode_login_stop_slave
 	
-	fi # $1 = start
+	# $1 = start
+	fi
 }
 
 server_check_session_count()
