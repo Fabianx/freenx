@@ -727,7 +727,7 @@ do
 			echo_x -n "NX> 102 Password: "
 			old_ifs="$IFS"
 			export IFS=$'\n'
-			read -s PASS
+			read -r -s PASS
 			export IFS="$old_ifs"
 			echo_x ""
 			log 6 -n "Info: Auth method: "
@@ -1499,14 +1499,14 @@ do
 		passwd)
 			echo_x "NX> 113 Changing password of user '$USER'"
 			echo_x -n "NX> 102 Current password:"
-			read -s PASS
+			read -r -s PASS
 			ENC_PASS=$(passdb_get_crypt_pass "$PASS")
 			REAL_PASS=$(passdb_get_pass "$USER")
 			echo_x
 			if [ "$ENC_PASS" = "$REAL_PASS" ]
 			then
 				echo_x -n "NX> 102 Password:"
-				read -s NEW_PASS1
+				read -r -s NEW_PASS1
 				
 				if [ ${#NEW_PASS1} -lt 5 ]
 				then
@@ -1516,7 +1516,7 @@ do
 
 				echo_x
 				echo_x -n "NX> 102 Confirm password:"
-				read -s NEW_PASS1
+				read -r -s NEW_PASS1
 				echo_x
 				if [ "$NEW_PASS1" = "$NEW_PASS2" ]
 				then
@@ -1634,7 +1634,7 @@ cmd_passwd()
 	CMD_CHUSER=$2
 	egrep -q "^$CMD_CHUSER:" $NX_ETC_DIR/passwords || cmd_abort "Error: User $CMD_CHUSER not found in database."
 	echo -n "New password: "
-	read -s CMD_NEWPASS
+	read -r -s CMD_NEWPASS
 	echo
 	CMD_ENC_PASS=$(passdb_get_crypt_pass "$CMD_NEWPASS")
 	passdb_chpass "$CMD_CHUSER" "$CMD_ENC_PASS"
