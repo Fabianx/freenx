@@ -7,7 +7,7 @@ PROGRAMS=nxacl.sample nxcheckload.sample nxcups-gethost nxdesktop_helper nxdialo
 
 all:
 	cd nxviewer-passwd && xmkmf && make Makefiles && make depend
-	. nxloadconfig &&\
+	source nxloadconfig &&\
 	export PATH_BIN PATH_LIB CUPS_BACKEND NX_VERSION &&\
 	for i in $(SUBDIRS) ; \
 	do\
@@ -36,6 +36,6 @@ clean:
 	done
 
 install:
-	. nxloadconfig &&\
+	source nxloadconfig &&\
 	export PATH_BIN PATH_LIB CUPS_BACKEND NX_VERSION &&\
 	$(MAKE) nxenv_install

@@ -61,6 +61,8 @@ XX.06.2008 FreeNX 0.7.3
 	  (fabianx@bat.berlios.de)
 	* Fixed missing "fi" statement. In fact it was a missing ";;".
 	  (fabianx@bat.berlios.de)
+	* Used source instead of "." for Makefile. (Closes: #13954)
+	  (fabianx@bat.berlios.de)
 
 14.03.2008 FreeNX 0.7.2 "Priscilla Edition"
 	* Opened the 0.7.2 development.
