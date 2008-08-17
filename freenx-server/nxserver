@@ -1295,13 +1295,15 @@ server_startrestore_session()
 	then
 		server_check_session_count || return 1
 		
+		# Possibly do loadbalancing
+		
+		SERVER_HOST=$(server_loadbalance)
+		
 		# start nxnode
 		SESS_DISPLAY=$DISPLAY_BASE
 		let SESS_DISPLAY_LIMIT=$DISPLAY_BASE+$DISPLAY_LIMIT
 	
 		# stupid but working algo ...
-			
-		# TODO: need to check for _all_ offset and ports :-/
 			
 		while true
 		do
@@ -1310,17 +1312,44 @@ server_startrestore_session()
 				let SESS_DISPLAY=$SESS_DISPLAY+1
 			done
 
-			# Check if there is already an agent running on that display
+			# Check if there is already an agent running on that display on that host
 			let AGENT_DISPLAY=$SESS_DISPLAY+6000
-			if $COMMAND_NETCAT -z 127.0.0.1 $AGENT_DISPLAY 2>/dev/null
+			if $COMMAND_NETCAT -z "$SERVER_HOST" $AGENT_DISPLAY 2>/dev/null
 			then
-				log 2 "Warning: Stray nxagent without .X$SESS_DISPLAY-lock found on port $AGENT_DISPLAY."
+				log 2 "Warning: Stray nxagent without .nX$SESS_DISPLAY-lock found on host:port $SERVER_HOST:$AGENT_DISPLAY."
+				let SESS_DISPLAY=$SESS_DISPLAY+1
+				continue
+			fi
+
+			# Now check for the other enabled services
+			
+			let SAMBA_DISPLAY=$SESS_DISPLAY+3000
+			if [ "$(getparam 'samba')" = 1 ] && $COMMAND_NETCAT -z "$SERVER_HOST" $SAMBA_DISPLAY
+			then
+				log 2 "Warning: Skipping $SERVER_HOST:$AGENT_DISPLAY as samba port is not free."
 				let SESS_DISPLAY=$SESS_DISPLAY+1
 				continue
 			fi
 			
+			let MEDIA_DISPLAY=$SESS_DISPLAY+7000
+			if [ "$(getparam 'media')" = 1 ] && $COMMAND_NETCAT -z "$SERVER_HOST" $MEDIA_DISPLAY
+			then
+				log 2 "Warning: Skipping $SERVER_HOST:$AGENT_DISPLAY as media port is not free."
+				let SESS_DISPLAY=$SESS_DISPLAY+1
+				continue
+			fi
+
+			
+			let CUPS_DISPLAY=$SESS_DISPLAY+9000
+			if [ "$(getparam 'cups')" = 1 ] && $COMMAND_NETCAT -z "$SERVER_HOST" $CUPS_DISPLAY
+			then
+				log 2 "Warning: Skipping $SERVER_HOST:$AGENT_DISPLAY as cups port is not free."
+				let SESS_DISPLAY=$SESS_DISPLAY+1
+				continue
+			fi
 
 			SESS_LOCKFILE=$(mktemp "/tmp/.nX$SESS_DISPLAY-lock.XXXXXXXXX")
+			
 			# ln is an atomic operation
 			ln "$SESS_LOCKFILE" "/tmp/.nX$SESS_DISPLAY-lock" 2>/dev/null && break
 		done
@@ -1336,10 +1365,6 @@ server_startrestore_session()
 	
 		uniqueid=$(echo $[$RANDOM*$RANDOM] | $COMMAND_MD5SUM | cut -d" " -f1 | tr "[a-z]" "[A-Z]")
 
-		# Possibly do loadbalancing
-		
-		SERVER_HOST=$(server_loadbalance)
-		
 		FULL_PARAMS="$PARAMS&user=$USER&userip=$USERIP&uniqueid=$uniqueid&display=$SESS_DISPLAY&host=$SERVER_HOST"
 		log_secure "6" "$FULL_PARAMS"
 

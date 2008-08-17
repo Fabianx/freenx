@@ -71,7 +71,10 @@ XX.06.2008 FreeNX 0.7.3
 	  (fabianx@bat.berlios.de)
 	* Fixed start/stop exit codes.
 	  (Patch by Gentoo Portage, fabianx@bat.berlios.de)
-	  
+	* Finally checked for all service ports. (cups, media, samba)
+	  and also checked it on the host where the load balancing actually
+	  leads to.
+	  (fabianx@bat.berlios.de)
 
 14.03.2008 FreeNX 0.7.2 "Priscilla Edition"
 	* Opened the 0.7.2 development.
