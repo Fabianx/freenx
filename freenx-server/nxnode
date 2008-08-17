@@ -1160,10 +1160,9 @@ startsession()
 	then
 		# we need to use the IP of the "calling" server now
 		userip=$(echo $SSH_CLIENT $SSH2_CLIENT | cut -d" " -f1 | sed 's/::ffff://g')
-
-		# TODO: This logic is broken ... ;-)
-		[ -z "$userip" ] && userip="127.0.0.1"
-		[ -z "$userip" -a "$host" != "127.0.0.1" ] && userip="*"
+		# If host is the same, use 127.0.0.1, else fallback to default
+		[ -z "$userip" -a "$host" = "127.0.0.1" ] && userip="127.0.0.1"
+		[ -z "$userip" ] && userip="*"
 	fi
 	
 	# ok, lets make the session dir first:

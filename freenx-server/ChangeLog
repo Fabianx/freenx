@@ -75,6 +75,9 @@ XX.06.2008 FreeNX 0.7.3
 	  and also checked it on the host where the load balancing actually
 	  leads to.
 	  (fabianx@bat.berlios.de)
+	* Fixed broken fallback logic if SSH_CLIENT variables cannot be read
+	  correctly.
+	  (fabianx@bat.berlios.de)
 
 14.03.2008 FreeNX 0.7.2 "Priscilla Edition"
 	* Opened the 0.7.2 development.
