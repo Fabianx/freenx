@@ -1,0 +1,7 @@
+#!/bin/sh
+
+# Deny all sessions to be shadowed by anyone besides the same user.
+exit 1
+
+# Allow all sessions to be shadowed by anyone.
+#exit 0

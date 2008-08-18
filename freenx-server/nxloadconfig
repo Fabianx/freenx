@@ -52,7 +52,7 @@ fi
 # DO NOT TOUCH unless you REALLY know what you are doing
 #########################################################################
 
-NX_VERSION=2.1.0-73-SVN
+NX_VERSION=3.2.0-73-SVN
 NX_LICENSE="OS (GPL, using backend: %BACKEND%)"
 
 # Where can different nx components be found
@@ -114,6 +114,9 @@ DISABLE_PERSISTENT_SESSION=""
 
 ENABLE_MIRROR_VIA_VNC=1
 ENABLE_DESKTOP_SHARING=1
+
+ENABLE_SESSION_SHADOWING_AUTHORIZATION=1
+ENABLE_INTERACTIVE_SESSION_SHADOWING=1
 
 ENABLE_CLIPBOARD="both"
 ENABLE_PULLDOWN_MENU="1"

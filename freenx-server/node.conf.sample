@@ -158,6 +158,50 @@
 #ENABLE_DESKTOP_SHARING=1
 
 #
+# General shadowing / mirroring notes:
+#
+# By default shadowing is only allowed for the same user.
+#
+# If nxserver finds nxshadowacl binary, it asks it, for which users 
+# the permission is granted.
+# 
+# nxshadowacl <user>
+# 
+# Exit code:
+#
+# 0 -> Save cookie in session file for other users
+# 1 -> Do not save cookie
+#
+# Check if user is allowed to be shadowed by admin user.
+#
+# nxshadowacl <user> <admin>
+# 
+# Exit code:
+#
+# 0 -> Yes, allow shadowing and add to list
+# 1 -> No, don't allow shadowing
+# 
+
+#
+# When using NX 3.0 shadowing, this enables asking the user whether
+# he authorizes another user to shadow his session
+#
+# 0: No authorization request will be presented,
+#    and the session will be shadowed as if the user had approved.
+# 1: (default) Ask for authorization
+#
+#ENABLE_SESSION_SHADOWING_AUTHORIZATION=1
+
+# Allow session shadowing in interactive mode:
+#
+# 1: The shadowing user can interact with the shadowed session.
+#
+# 0: The shadowed session is view-only. No interaction with the
+#    shadowed session is possible.
+#
+#ENABLE_INTERACTIVE_SESSION_SHADOWING=1
+
+#
 # Enable or disable clipboard:
 #
 # client:  The content copied on the client can be pasted inside the
