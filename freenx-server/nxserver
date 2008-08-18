@@ -1278,7 +1278,7 @@ server_startrestore_session()
 			return 1
 		fi
 
-		PARAMS="$PARAMS&shadowdisplay=$shadowdisplay&shadowhost=$shadowhost"
+		PARAMS="$PARAMS&shadowdisplay=$shadowdisplay&shadowhost=$shadowhost&shadowcookie=$shadowcookie&shadowuser=$shadowuser"
 		CMDLINE=$PARAMS
 	fi
 	

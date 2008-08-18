@@ -34,9 +34,11 @@ then
 		if [ -n "$shadowcookie" ]
 		then
 			xauth add "$shadowhost:$shadowdisplay" MIT-MAGIC-COOKIE-1 "$shadowcookie"
-			[ "$ENABLE_SESSION_SHADOWING_AUTHORIZATION" = "1" ] && accept="-accept popup"
-			[ "$ENABLE_INTERACTIVE_SESSION_SHADOWING" != "1" ] && viewonly="-viewonly"
-	
+			if [ "$shadowuser" != "$USER" ]
+			then
+				[ "$ENABLE_SESSION_SHADOWING_AUTHORIZATION" = "1" ] && accept="-accept popup"
+				[ "$ENABLE_INTERACTIVE_SESSION_SHADOWING" != "1" ] && viewonly="-viewonly"
+			fi
 		fi
 		
 		DISPLAY="$shadowhost:$shadowdisplay" $COMMAND_X11VNC -localhost $accept $viewonly -timeout 120 -once -rfbauth "$NXSESSION_DIRECTORY/scripts/.passwd" >"$NXSESSION_DIRECTORY/scripts/.vnc_port" &
