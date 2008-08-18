@@ -104,7 +104,7 @@
 # For this to work the binary nxserver-helper has to be installed in 
 # PATH_BIN.
 #
-#ENABLE_SLAVE_MODE="0"
+#ENABLE_SLAVE_MODE="1"
 
 # If ENABLE_LOG_FAILED_LOGINS="1" then failed login attempts are logged to the system
 # auth.log.

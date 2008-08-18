@@ -96,6 +96,12 @@ XX.06.2008 FreeNX 0.7.3
 	* Added disabled nxserver-suid wrapper with help from Google. To 
 	  enable it uncomment the suid_install target in Makefile.
 	  ( Alistair Riddoch <alriddoch@google.com>, fabianx@bat.berlios.de)
+	* Automatically disabled slave mode, when load balancing is activated.
+	  (fabianx@bat.berlios.de)
+	* Made ENABLE_SLAVE_MODE="1" the new default as its faster
+	  and more reliable. If you encounter any problems with it,
+	  disable it in node.conf.
+	  (fabianx@bat.berlios.de)
 
 14.03.2008 FreeNX 0.7.2 "Priscilla Edition"
 	* Opened the 0.7.2 development.

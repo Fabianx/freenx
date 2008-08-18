@@ -658,6 +658,13 @@ fi
 NXNODE_LOGIN_SLAVE_ENABLED="0"
 NXNODE_LOGIN_SLAVE=""
 
+# slave mode does not work with load balancing
+if [ -n "$LOAD_BALANCE_SERVERS" -a "$ENABLE_SLAVE_MODE" = "1" ]
+then
+	log 2 "Warning: Disabled slave mode. It does not work together with load balancing."
+	ENABLE_SLAVE_MODE="0"
+fi
+
 if [ "$ENABLE_SLAVE_MODE" = "1" -a "$NXSERVER_HELPER_ACTIVE" != "1" -a -z "$NX_TRUSTED_USER" ]
 then
 	export SSH_ORIGINAL_COMMAND
