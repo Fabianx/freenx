@@ -972,9 +972,10 @@ server_nxnode_start_wait()
 				then
 					# check if we should save the cookie
 					$PATH_BIN/nxshadowacl "$USER"
-					if [ $? -ne 0 ]
+					
+					if [ $? -eq 0 ]
 					then
-						SHADOW_COOKIE=$(echo $CMD | cut -d: -f2)
+						SHADOW_COOKIE=$(echo $CMD | cut -d: -f2 | sed 's/ //g')
 						session_change "$uniqueid" "shadow_cookie" "$SHADOW_COOKIE"
 					fi
 				fi
@@ -1423,7 +1424,7 @@ server_startrestore_session()
 		sessionRootlessMode=0
 		[ "$(getparam rootless)" = "1" ] && sessionRootlessMode=1
 		CMDLINE="a=b&$FULL_PARAMS"
-		session_add $uniqueid "sessionName=$(getparam session)&display=$(getparam display)&status=Running&startTime=$(date +%s)&foreignAddress=$(getparam userip)&sessionRootlessMode=$sessionRootlessMode&type=$(getparam type)&sessionId=$uniqueid&creationTime=$(date +%s)&userName=$USER&serverPid=$SERVER_PID&screeninfo=$(getparam screeninfo)&geometry=$(getparam geometry)&host=$SERVER_HOST"
+		session_add $uniqueid "sessionName=$(getparam session)&display=$(getparam display)&status=Running&startTime=$(date +%s)&foreignAddress=$(getparam userip)&sessionRootlessMode=$sessionRootlessMode&type=$(getparam type)&sessionId=$uniqueid&creationTime=$(date +%s)&userName=$USER&serverPid=$SERVER_PID&screeninfo=$(getparam screeninfo)&geometry=$(getparam geometry)&host=$SERVER_HOST&shadow_cookie=none"
 	else
 		uniqueid=$(getparam restore)
 		[ -z "$uniqueid" ] && uniqueid=$(getparam id) # 1.4.0-5 compatibility
