@@ -1,9 +1,9 @@
-.PHONY: all install clean
+.PHONY: all install clean nxenv_install suid_install
 
 SHELL = /bin/bash
 
-SUBDIRS=nxredir nxviewer-passwd nxserver-helper nx-session-launcher
-PROGRAMS=nxacl.sample nxcheckload.sample nxcups-gethost nxdesktop_helper nxdialog nxkeygen nxloadconfig nxnode nxnode-login nxprint nxserver nxserver-helper/nxserver-helper nxsetup nxviewer_helper nxviewer-passwd/nxpasswd/nxpasswd nx-session-launcher/nx-session-launcher nx-session-launcher/nx-session-launcher-suid nxserver-usermode
+SUBDIRS=nxredir nxviewer-passwd nxserver-helper nxserver-suid nx-session-launcher
+PROGRAMS=nxacl.sample nxcheckload.sample nxcups-gethost nxdesktop_helper nxdialog nxkeygen nxloadconfig nxnode nxnode-login nxprint nxserver nxserver-helper/nxserver-helper nxsetup nxviewer_helper nxviewer-passwd/nxpasswd/nxpasswd nx-session-launcher/nx-session-launcher nx-session-launcher/nx-session-launcher-suid nxserver-usermode nxserver-suid/nxserver-suid
 
 all:
 	cd nxviewer-passwd && xmkmf && make Makefiles && make depend
@@ -14,6 +14,10 @@ all:
 		echo "making" all "in $$i..."; \
 	        $(MAKE) -C $$i all || exit 1;\
 	done
+
+suid_install:
+	chown nx:root $(DESTDIR)/$$PATH_BIN/nxserver-suid
+	chmod 4755 $(DESTDIR)/$$PATH_BIN/nxserver-suid
 
 nxenv_install:
 	install -m755 -d $(DESTDIR)/$$PATH_BIN/
@@ -26,6 +30,9 @@ nxenv_install:
 	done
 	install -m644 node.conf.sample $(DESTDIR)/$$NX_ETC_DIR/
 	$(MAKE) -C nxredir install
+	# uncomment the following line to make
+	# nxserver-suid suid nx
+	#$(MAKE) suid_install
 
 clean:
 	make -C nxviewer-passwd clean

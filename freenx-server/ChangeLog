@@ -93,6 +93,9 @@ XX.06.2008 FreeNX 0.7.3
 		* Fixed creation of the logfile directory.
 		* Fixed nxnode usage of SSH_CLIENT using fallback mechanism.
 	  (Patch by nbartos@bat.berlios.de, fabianx@bat.berlios.de)
+	* Added disabled nxserver-suid wrapper with help from Google. To 
+	  enable it uncomment the suid_install target in Makefile.
+	  ( Alistair Riddoch <alriddoch@google.com>, fabianx@bat.berlios.de)
 
 14.03.2008 FreeNX 0.7.2 "Priscilla Edition"
 	* Opened the 0.7.2 development.
