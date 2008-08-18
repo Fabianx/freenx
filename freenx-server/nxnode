@@ -1116,8 +1116,13 @@ startsession()
 	clientproto=$(getparam clientproto)
 	status=$(getparam status)
 	host=$(getparam host)
-	mirrordisplay=$(getparam mirrordisplay)
-	mirrorhost=$(getparam mirrorhost)
+	
+	# New NX 3.0 shadow mode related variables
+	shadowusername=$(getparam shadowusername)
+	shadowcookie=$(getparam shadowcookie)
+	shadowdisplay=$(getparam shadowdisplay)
+	shadowhost=$(getparam shadowhost)
+
 	
 	sess_id="$SERVER_NAME-$display-$uniqueid"
 	NXSESSION_DIRECTORY="$USER_FAKE_HOME/.nx/C-$sess_id"
@@ -1141,8 +1146,14 @@ startsession()
 		export COMMAND_VNCPASSWD
 		export COMMAND_X11VNC
 		export PATH_BIN
-		export mirrordisplay
-		export mirrorhost
+		export shadowdisplay
+		export shadowhost
+		export shadowuser
+		export shadowcookie
+
+		export ENABLE_SESSION_SHADOWING_AUTHORIZATION
+		export ENABLE_INTERACTIVE_SESSION_SHADOWING
+
 		# We do not want to suspend such a session
 		# as RDP/RFB are both suspendable as well
 		ENABLE_PERSISTENT_SESSION=""

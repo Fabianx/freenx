@@ -312,10 +312,10 @@ session_list_user_suspended()
 				available="Yes"
 			fi
 			
-			# We automatically offer VNC mirrored sessions for "remote" support
+			# We automatically offer VNC shadowed sessions for "remote" support
 			if [ "$4" = "vnc" -a "$ENABLE_MIRROR_VIA_VNC" = "1" ] && stringinstring "unix-" "$(getparam type)"
 			then
-				printf "%-7s %-16s %32s %8s %5s %-14s %-11s %s\n" "$(getparam display)" "vnc-mirrored" "$(getparam sessionId)" "$options" "$depth" "$geom" "$available" "$(getparam sessionName) (Mirrored)" >> $TMPFILE
+				printf "%-7s %-16s %32s %8s %5s %-14s %-11s %s\n" "$(getparam display)" "vnc-shadowed" "$(getparam sessionId)" "$options" "$depth" "$geom" "$available" "$(getparam sessionName) (Mirrored)" >> $TMPFILE
 			else
 				# only unix-* sessions can be resumed, but other session types can still be terminated
 				stringinstring "unix-" "$4" || available="N/A"
@@ -976,7 +976,7 @@ server_nxnode_start_wait()
 					if [ $? -eq 0 ]
 					then
 						SHADOW_COOKIE=$(echo $CMD | cut -d: -f2 | sed 's/ //g')
-						session_change "$uniqueid" "shadow_cookie" "$SHADOW_COOKIE"
+						session_change "$uniqueid" "shadowcookie" "$SHADOW_COOKIE"
 					fi
 				fi
 			;;
@@ -1063,7 +1063,7 @@ server_nxnode_start_wait()
 					if [ $? -eq 0 ]
 					then
 						SHADOW_COOKIE=$(echo $CMD | cut -d: -f2 | sed 's/ //g')
-						session_change "$uniqueid" "shadow_cookie" "$SHADOW_COOKIE"
+						session_change "$uniqueid" "shadowcookie" "$SHADOW_COOKIE"
 					fi
 				fi
 			;;
@@ -1247,34 +1247,38 @@ server_startrestore_session()
 	CMDLINE=$PARAMS
 	echo_x
 
-	# special mirrored type
-	[ "$ACTION" != "start" -a "$(getparam type)" = "vnc" ] && ACTION="mirror"
+	# special shadowed type
+	[ "$ACTION" != "start" -a "$(getparam type)" = "vnc" ] && ACTION="shadow"
 
-	if [ "$ACTION" = "mirror" ]
+	if [ "$ACTION" = "shadow" ]
 	then
 		ACTION="start"
 		uniqueid=$(getparam restore)
 		[ -z "$uniqueid" ] && uniqueid=$(getparam id) # 1.4.0-5 compatibility
 		CMDLINE=$(session_get "$uniqueid" 2>/dev/null)
 
-		mirrordisplay=$(getparam display)
-		mirrorhost=$(getparam host)
+		shadowdisplay=$(getparam display)
+		shadowhost=$(getparam host)
+		shadowcookie=$(getparam shadowcookie)
+		shadowuser=$(getparam userName)
 
-		if [ -z "$mirrordisplay"  ]
+		[ "$shadowcookie" = "none" ] && shadowcookie=""
+
+		if [ -z "$shadowdisplay"  ]
 		then
 			# check for DESKTOP_SHARING_IDS
-			mirrordisplay=$(echo $DESKTOP_SHARING_IDS | tr ' ' '\n' | egrep "^$uniqueid=" | cut -d'=' -f2)
-			mirrorhost="127.0.0.1"
+			shadowdisplay=$(echo $DESKTOP_SHARING_IDS | tr ' ' '\n' | egrep "^$uniqueid=" | cut -d'=' -f2)
+			shadowhost="127.0.0.1"
 		fi
 
-		if [ -z "$mirrordisplay" ]
+		if [ -z "$shadowdisplay" ]
 		then
-			echo_x "NX> 596 Could not find mirrored session $uniqueid. Session failed."
+			echo_x "NX> 596 Could not find shadowed session $uniqueid. Session failed."
 			echo_x "NX> 596 Sharing: $DESKTOP_SHARING_IDS"
 			return 1
 		fi
 
-		PARAMS="$PARAMS&mirrordisplay=$mirrordisplay&mirrorhost=$mirrorhost"
+		PARAMS="$PARAMS&shadowdisplay=$shadowdisplay&shadowhost=$shadowhost"
 		CMDLINE=$PARAMS
 	fi
 	
@@ -1356,7 +1360,7 @@ server_startrestore_session()
 	# as only $SSH_CLIENT or $SSH2_CLIENT will be set, this should work
 	USERIP=$(echo $SSH_CLIENT $SSH2_CLIENT | cut -d" " -f1 | sed 's/::ffff://g')
 	[ -z "$USERIP" ] && USERIP="*"
-	if [ "$ACTION" = "start" -o "$ACTION" = "mirror" ]
+	if [ "$ACTION" = "start" -o "$ACTION" = "shadow" ]
 	then
 		server_check_session_count || return 1
 		
@@ -1437,7 +1441,7 @@ server_startrestore_session()
 		sessionRootlessMode=0
 		[ "$(getparam rootless)" = "1" ] && sessionRootlessMode=1
 		CMDLINE="a=b&$FULL_PARAMS"
-		session_add $uniqueid "sessionName=$(getparam session)&display=$(getparam display)&status=Running&startTime=$(date +%s)&foreignAddress=$(getparam userip)&sessionRootlessMode=$sessionRootlessMode&type=$(getparam type)&sessionId=$uniqueid&creationTime=$(date +%s)&userName=$USER&serverPid=$SERVER_PID&screeninfo=$(getparam screeninfo)&geometry=$(getparam geometry)&host=$SERVER_HOST&shadow_cookie=none"
+		session_add $uniqueid "sessionName=$(getparam session)&display=$(getparam display)&status=Running&startTime=$(date +%s)&foreignAddress=$(getparam userip)&sessionRootlessMode=$sessionRootlessMode&type=$(getparam type)&sessionId=$uniqueid&creationTime=$(date +%s)&userName=$USER&serverPid=$SERVER_PID&screeninfo=$(getparam screeninfo)&geometry=$(getparam geometry)&host=$SERVER_HOST&shadowcookie=none"
 	else
 		uniqueid=$(getparam restore)
 		[ -z "$uniqueid" ] && uniqueid=$(getparam id) # 1.4.0-5 compatibility
@@ -1582,8 +1586,8 @@ do
 		restoresession*)
 			server_startrestore_session "resume"
 		;;
-		mirrorsession*)
-			server_startrestore_session "mirror"
+		attachsession*)
+			server_startrestore_session "shadow"
 		;;
 
 		passwd)
