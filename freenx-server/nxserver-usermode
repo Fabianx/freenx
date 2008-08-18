@@ -1,0 +1,11 @@
+#!/bin/bash
+#
+# Small helper to startup nxserver in usermode setup.
+#
+# Copyright (c) 2008 by Fabian Franz <freenx@fabian-franz.de>
+#
+# License: GPL, version 2
+#
+
+export NX_USERMODE="1"
+exec $(dirname $0)/nxserver "$@"

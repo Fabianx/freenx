@@ -78,6 +78,21 @@ XX.06.2008 FreeNX 0.7.3
 	* Fixed broken fallback logic if SSH_CLIENT variables cannot be read
 	  correctly.
 	  (fabianx@bat.berlios.de)
+	* Overhauled the usermode: 
+		* There are now two modes of operation.
+	  	- One statically setting the 
+		  ENABLE_USERMODE_AUTHENTICATION key
+	  	  in node.conf. (old behavior)
+		- Or using nxserver-usermode as startup 
+		  binary, which directly goes into the 103 stage.
+		* Fixed using commandline parameters like --cleanup 
+		  for static usermode.
+		* Enabled the root commandline parameters in usermode.
+		* Fixed usage of "nx" user as normal user in usermode.
+		* Disabled slave mode and load balancing for usermode.
+		* Fixed creation of the logfile directory.
+		* Fixed nxnode usage of SSH_CLIENT using fallback mechanism.
+	  (Patch by nbartos@bat.berlios.de, fabianx@bat.berlios.de)
 
 14.03.2008 FreeNX 0.7.2 "Priscilla Edition"
 	* Opened the 0.7.2 development.

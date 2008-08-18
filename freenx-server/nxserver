@@ -484,23 +484,48 @@ session_suspend()
 # Main nxserver <-> nxclient communication module
 #
 
-if [ "$USER" = "nxfree" -o "$USER" = "nx" -o "$ENABLE_USERMODE_AUTHENTICATION" = "1" ]
+# do not run in server mode loop
+SERVER_MODE="0"
+
+# For users nxfree and nx run in SERVER MODE
+[ "$USER" = "nxfree" -o "$USER" = "nx" ] && SERVER_MODE="1"
+
+# We can override usermode via environment var
+[ "$NX_USERMODE" = "1" ] && ENABLE_USERMODE_AUTHENTICATION="1"
+
+# When usermode is 1, we only run in server loop
+# if nxserver was run without any arguments or just with -c nxserver.
+if [ "$ENABLE_USERMODE_AUTHENTICATION" = "1" ]
+then 
+	# do not run in server mode loop regardless of username
+	SERVER_MODE="0"
+
+	[ -z "$*" -o "$*" = "-c $PATH_BIN/nxserver" ] && SERVER_MODE="1"
+	
+	# Reread the config files (so that $USER.node.conf get sourced)
+	. $(PATH=$(cd $(dirname $0) && pwd):$PATH which nxloadconfig) --userconf
+	
+	# We might need to reactivate this now
+	ENABLE_USERMODE_AUTHENTICATION="1"
+	
+	# export the necessary variables
+	export NX_SESS_DIR="$USER_FAKE_HOME/.nx/db/"
+	export NX_LOGFILE="$USER_FAKE_HOME/.nx/temp/nxserver.log"
+	mkdir -p $(dirname $NX_LOGFILE)
+	mkdir -p $NX_SESS_DIR/{closed,running,failed}
+	
+	# we are logged in already 
+	LOGIN_SUCCESS="1"
+	LOGIN_METHOD="USERMODE"
+
+	# we do not use SLAVE mode for usermode
+	ENABLE_SLAVE_MODE="0"
+	# we do not use loadbalancing mode for usermode
+	LOAD_BALANCE_SERVERS=""
+fi
+
+if [ "$SERVER_MODE" = "1" ]
 then
-
-setup_usermode_auth()
-{
-
-	[ $USER = "nxfree" -o "$USER" = "nx" ] && ENABLE_USERMODE_AUTHENTICATION="0"
-
-	if [ "$ENABLE_USERMODE_AUTHENTICATION" = "1" ]
-	then
-		export NX_SESS_DIR="$USER_FAKE_HOME/.nx/db/"
-		export NX_LOGFILE="$USER_FAKE_HOME/.nx/temp/nxserver.log"
-		mkdir -p $NX_SESS_DIR/{closed,running,failed}
-	fi
-}
-
-setup_usermode_auth
 
 #
 # needed for slave mode
@@ -671,7 +696,9 @@ then
 	
 	# Reread the config files (so that $USER.node.conf get sourced)
 	. $(PATH=$(cd $(dirname $0) && pwd):$PATH which nxloadconfig) --userconf
-	echo_x "NX> 103 Welcome to: $SERVER_NAME user: $USER"
+elif [ "$NX_USERMODE" = "1" ]
+then
+	log 3 "Info: Usermode authentication: Logged in as $USER."
 else
 
 echo_x "HELLO NXSERVER - Version $NX_VERSION $NX_LICENSE"
@@ -721,8 +748,8 @@ do
 			LOGIN_SUCCESS="0"
 			
 			echo_x -n "NX> 101 User: "
-			read USER
-			echo_x $USER
+			read USER2
+			echo_x $USER2
 			
 			echo_x -n "NX> 102 Password: "
 			old_ifs="$IFS"
@@ -736,9 +763,12 @@ do
 			if [ "$ENABLE_USERMODE_AUTHENTICATION" = "1" ]
 			then
 				LOGIN_SUCCESS="1"
-				LOGIN_METHOD="USERMODE"
-				USER=$(whoami)
+				# we have read the user config already above,
+				# so we don't get any new information here
+				break
 			fi
+
+			USER=$USER2
 
 			# PASSDB based auth
 			if [ "$ENABLE_PASSDB_AUTHENTICATION" = "1" -a "$LOGIN_SUCCESS" = "0" ]
@@ -788,9 +818,6 @@ do
 			then
 				# Reread the config files (so that $USER.node.conf get sourced)
 				. $(PATH=$(cd $(dirname $0) && pwd):$PATH which nxloadconfig) --userconf
-				setup_usermode_auth
-
-				echo_x "NX> 103 Welcome to: $SERVER_NAME user: $USER"
 				break
 			else
 				echo_x "NX> 404 ERROR: wrong password or login"
@@ -806,6 +833,8 @@ do
 done
 
 fi
+
+echo_x "NX> 103 Welcome to: $SERVER_NAME user: $USER"
 
 # Add the slave mode shutdown trap (just in case)
 [ -n "$NXNODE_LOGIN_SLAVE" ] && trap nxnode_login_stop_slave EXIT
@@ -870,6 +899,9 @@ server_nxnode_start()
 	    NXNODE_TOSEND="$@" nxnode_login "$PASS" -- su "$USER" "" "$PATH_BIN/nxnode" "$CMD" 2>&1 | log_tee
 	elif [ "$LOGIN_METHOD" = "USERMODE" ]
 	then
+	    # we need to unset SSH_* variables so that nxnode 
+	    # chooses the right accept= value.
+	    unset SSH_CLIENT SSH_CLIENT2
 	    echo "$@" | $PATH_BIN/nxnode "$CMD" 2>&1 | log_tee
 	else
 	    echo "$@" | $COMMAND_SSH -l "$USER" "$NODE_HOSTNAME" -p $SSHD_PORT -x -2 -i $NX_ETC_DIR/users.id_dsa -o 'PubkeyAuthentication yes' -o 'RSAAuthentication yes' -o 'RhostsAuthentication no' -o 'PasswordAuthentication no' -o 'RhostsRSAAuthentication no' -o 'StrictHostKeyChecking no' $PATH_BIN/nxnode "$CMD" | log_tee
@@ -1902,10 +1934,10 @@ cmd_send()
 }
 
 #
-# user mode available functions
+# normal user available functions
 #
 
-if [ $UID -ne 0 ]
+if [ $UID -ne 0 -a "$ENABLE_USERMODE_AUTHENTICATION" != "1" ]
 then
 	[ "$1" = "--agent" ] && exec $PATH_BIN/nxnode "$@"
 	[ "$1" != "--passwd" ] && cmd_usage
