@@ -1054,6 +1054,19 @@ server_nxnode_start_wait()
 	server_nxnode_start "$@" | while read CMD
 	do
 		case "$CMD" in 
+			"NX> 706"*)
+				if [ -x "$PATH_BIN/nxshadowacl" ]
+				then
+					# check if we should save the cookie
+					$PATH_BIN/nxshadowacl "$USER"
+					
+					if [ $? -eq 0 ]
+					then
+						SHADOW_COOKIE=$(echo $CMD | cut -d: -f2 | sed 's/ //g')
+						session_change "$uniqueid" "shadow_cookie" "$SHADOW_COOKIE"
+					fi
+				fi
+			;;
 			"NX> 1006"*|"NX> 1005"*|"NX> 1009"*)
 				case "$CMD" in 
 					*running*)
