@@ -102,6 +102,9 @@ XX.06.2008 FreeNX 0.7.3
 	  and more reliable. If you encounter any problems with it,
 	  disable it in node.conf.
 	  (fabianx@bat.berlios.de)
+	* Changed type for external agents to windows-helper or vnc-helper
+	  so that those sessions can be mirrored / shadowed as well.
+	  (fabianx@bat.berlios.de)
 
 14.03.2008 FreeNX 0.7.2 "Priscilla Edition"
 	* Opened the 0.7.2 development.

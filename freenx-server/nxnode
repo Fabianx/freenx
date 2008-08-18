@@ -214,7 +214,7 @@ node_find_application()
 		unix-cde)
 			NODE_STARTX=$COMMAND_START_CDE
 		;;
-		unix-application)
+		unix-application|windows-helper|vnc-helper)
 			[ "$application" = "xterm" ] && application=$COMMAND_XTERM
 			NODE_STARTX=$application
 		;;
