@@ -205,6 +205,9 @@ node_find_application()
 	NODE_STARTX=""
 
 	case $1 in
+		shadow|windows|vnc)
+			:
+		;;
 		unix-kde)
 			NODE_STARTX=$COMMAND_START_KDE
 		;;
@@ -528,6 +531,20 @@ node_start_agent()
 		P=$(node_agent_persistent_session)
 		FP=""
 		[ -n "$AGENT_FONT_SERVER" ] && FP="-fp $AGENT_FONT_SERVER"
+		
+		if [ "$type" = "shadow" ]
+		then
+			# Add to xauth and ask for permission
+
+        	        # not the same user? So we have a shadow cookie, we add to xauth
+                	if [ -n "$shadowcookie" ]
+                	then
+                	        xauth add "$shadowhost:$shadowdisplay" MIT-MAGIC-COOKIE-1 "$shadowcookie"
+                	fi
+
+			R="-S -shadow $shadowhost:$shadowdisplay -shadowmode $ENABLE_INTERACTIVE_SESSION_SHADOWING"
+			P="-nopersistent"
+		fi
 		
 		# Start the agent
 		
