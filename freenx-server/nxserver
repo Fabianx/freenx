@@ -288,6 +288,20 @@ session_list_user_suspended()
 		if egrep -q "^userName=$1$" $i && egrep -q "^status=$2$" $i #&& grep -q "screeninfo=$3" $i
 		then
 			CMDLINE=$(session_get_cmdline $i)
+			
+			if [ "$4" = "shadow" ]
+			then
+				if [ "$(getparam userName)" != "$USER" ]
+				then 
+					[ -z "$(getparam shadowcookie)" ] && continue
+					
+					if [ -x "$PATH_BIN/nxshadowacl" ]
+					then
+						$PATH_BIN/nxshadowacl "$(getparam userName)" "$USER" || continue
+					fi
+				fi
+			fi
+	
 			depth=$(getparam screeninfo | cut -d "x" -f3 | cut -d "+" -f1 )
 			[ "$depth" = "32" ] && depth=24
 			geom=$(getparam screeninfo | cut -d "x" -f1,2) 
@@ -315,7 +329,12 @@ session_list_user_suspended()
 			# We automatically offer VNC shadowed sessions for "remote" support
 			if [ "$4" = "vnc" -a "$ENABLE_MIRROR_VIA_VNC" = "1" ] && stringinstring "unix-" "$(getparam type)"
 			then
+				available=$(getparam status)
 				printf "%-7s %-16s %32s %8s %5s %-14s %-11s %s\n" "$(getparam display)" "vnc-shadowed" "$(getparam sessionId)" "$options" "$depth" "$geom" "$available" "$(getparam sessionName) (Mirrored)" >> $TMPFILE
+			elif [ "$4" = "shadow" ]
+			then
+				available=$(getparam status)
+				printf "%-7s %-16s %32s %8s %5s %-14s %-11s %s\n" "$(getparam display)" "$(getparam type)" "$(getparam sessionId)" "$options" "$depth" "$geom" "$available" "$(getparam sessionName) (Shadowed)" >> $TMPFILE
 			else
 				# only unix-* sessions can be resumed, but other session types can still be terminated
 				stringinstring "unix-" "$4" || available="N/A"
@@ -1545,7 +1564,8 @@ do
 			server_get_params $CMD
 			PARAMS=$SERVER_PARAMS
 			CMDLINE=$PARAMS
-			
+
+		
 			status=$(getparam status)
 
 			if [ "$status" = "Suspended" -a -n "$(getparam screeninfo)" ]
@@ -1561,6 +1581,9 @@ do
 				status=$(echo $status | sed 's/,/$|^status=/g; s/suspended/Suspended/g; s/running/Running/g')
 				[ "$ENABLE_SHOW_RUNNING_SESSIONS" = "0" ] && status="Suspended"
 				session_list_user_suspended "$USER" "$status" "$(getparam geometry)" "$(getparam type)"
+			elif [ "$(getparam type)" = "shadow" ]
+			then
+				session_list_user_suspended ".*" "Running" "" "shadow"
 			else
 				session_list_user "$USER" | log_tee
 			fi
