@@ -1,4 +1,4 @@
-XX.06.2008 FreeNX 0.7.3
+18.08.2008 FreeNX 0.7.3
 	* Opened the 0.7.3 development.
 	* Added logging of failed authentication attempts
 	  to auth.log via syslog (3). This can be disabled by 
