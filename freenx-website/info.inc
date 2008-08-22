@@ -26,7 +26,7 @@
 			General FreeNX FAQ
 		</dt>
 		<dd>
-			<a href="http://openfacts.berlios.de/index-en.phtml?title=FreeNX_FAQ">http://openfacts.berlios.de/index-en.phtml?title=FreeNX_FAQ</a>
+			<a href="http://openfacts2.berlios.de/wikien/index.php/BerliosProject:FreeNX_-_FAQ">http://openfacts2.berlios.de/wikien/index.php/BerliosProject:FreeNX_-_FAQ</a>
 		</dd>
 		<dd>
 			<a href="http://www.gnomeuser.org/documents/howto/nx.html">http://www.gnomeuser.org/documents/howto/nx.html</a>

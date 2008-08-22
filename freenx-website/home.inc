@@ -12,6 +12,135 @@
 	</h2>
 	<h3>
 		<a
+	href="">FreeNX
+	0.7.3 "Priscilla One Year Edition" Released</a>
+        - Sunday, 18/08/08 - 
+	[<a title="Download"
+	href="http://prdownload.berlios.de/freenx/freenx-0.7.3.tar.gz">Download</a>]
+	</h3>
+	<pre>
+18.08.2008 FreeNX 0.7.3 "Priscilla One Year Edition"
+        * Opened the 0.7.3 development.
+        * Added logging of failed authentication attempts
+          to auth.log via syslog (3). This can be disabled by
+          setting ENABLE_LOG_FAILED_LOGINS="0".
+          (fabianx@bat.berlios.de)
+        * Added -nolisten tcp to nxagent invocation.
+          (fabianx@bat.berlios.de, idea by  pappy- (Gentoo))
+        * Used bash for all tasks as 'sh' might be not what we want
+          on standard ubuntu.
+          (fabianx@bat.berlios.de, thx to tan (IRC))
+        * Finally fixed mv not working for failed or terminated
+          sessions.
+          (fabianx@bat.berlios.de, Terje Andersen <terander@guard.zapto.org>)
+        * Added patch from 2005 to enable reconnect to 24-bit display via
+          32-bit or vice versa. Oops :)
+          (Sunil <funtoos at yahoo.com> )
+        * Added 3.2.0 as a backend version for nxloadconfig.
+          (fabianx@bat.berlios.de)
+        * Added configuration key ENABLE_SOURCE_BASH_PROFILE for toggling of
+          sourcing ~/.bash_profile.
+          (fabianx@bat.berlios.de)
+        * Added /usr/bin/xauth as default key and used /usr/X11R6/bin/xauth as
+          fallback.
+          (fabianx@bat.berlios.de)
+        * Fixed Makefile to stop on all errors.
+          (Idea by Hai Zaar <haizaar@gmail.com>, fabianx@bat.berlios.de)
+        * Changed the default for ENABLE_PASSDB_AUTHENTICATION. If you had
+          added a user with different password via --adduser consider
+          re-activating this option in node.conf.
+          (fabianx@bat.berlios.de)
+        * Added constraints for passdb based commands. They are only available
+          when ENABLE_PASSDB_AUTHENTICATION="1" else a friendly error message
+          is shown. This should help with users using old tutorials.
+          (fabianx@bat.berlios.de)
+        * Added unix-console patch. Added default handler as unix-default with
+          a fallback to xterm,
+          (Idea by Jens Hatlak <jh@junetz.de>, fabianx@bat.berlios.de)
+        * Fixed external rdesktop keyboards: A "$" was missing.
+          (Bug by Phil Stricker <stril@gmx.de>, fabianx@bat.berlios.de)
+        * Added workaround for "ch" keyboard layout to nxdesktop_helper,
+          which NXClient 3.2.0 means as de-ch.
+          (Bug by Phil Stricker <stril@gmx.de>, fabianx@bat.berlios.de)
+        * Added clean target to Makefile.
+          (Based on patch by Ubuntu FreeNX-Team, fabianx@bat.berlios.de)
+        * Use :0.0 if mirrorhost is 127.0.0.1 and add -localhost for
+          enhanced security. Also increase sleep timeout for slow machines.
+          (Based on Patch by Jeremy Wilkins <wjeremy@shaw.ca>, fabianx@bat.berlios.de)
+        * Allow RDP "Run application" sessions to work correctly.
+          (David Corral < davefury@gmail.com > & the Silice Telecom staff,
+           fabianx@bat.berlios.de)
+        * Merge Xresources on startup of session.
+          (Jeremy Wilkins <wjeremy@shaw.ca>)
+        * Added nx-session-launcher from Ubuntu FreeNX-Team to use FreeNX with
+          ConsoleKit.
+          (marceloshima@gmail.com, fabianx@bat.berlios.de)
+        * Moved logging functions to a more appropriate place.
+          (fabianx@bat.berlios.de)
+        * Finally fixed the bug when NX Client was stopped on "Negotiating
+          link parameters" and failed session after first session suspend.
+          (fabianx@bat.berlios.de)
+        * Fixed missing "fi" statement. In fact it was a missing ";;".
+          (fabianx@bat.berlios.de)
+        * Used source instead of "." for Makefile. (Closes: #13954)
+          (fabianx@bat.berlios.de)
+        * Allow passwords with '\' by changing read -s to read -r -s.
+          (Closes: #10699)
+          (Patch by rpfuller@bat.berlios.de, fabianx@bat.berlios.de)
+        * Allow passwords with special chars by using new url_decode on
+          agent_password. (Closes: #10248)
+          (fabianx@bat.berlios.de)
+        * Fixed start/stop exit codes.
+          (Patch by Gentoo Portage, fabianx@bat.berlios.de)
+        * Finally checked for all service ports. (cups, media, samba)
+          and also checked it on the host where the load balancing actually
+          leads to.
+          (fabianx@bat.berlios.de)
+        * Fixed broken fallback logic if SSH_CLIENT variables cannot be read
+          correctly.
+          (fabianx@bat.berlios.de)
+        * Overhauled the usermode:
+                * There are now two modes of operation.
+                - One statically setting the
+                  ENABLE_USERMODE_AUTHENTICATION key
+                  in node.conf. (old behavior)
+                - Or using nxserver-usermode as startup
+                  binary, which directly goes into the 103 stage.
+                * Fixed using commandline parameters like --cleanup
+                  for static usermode.
+                * Enabled the root commandline parameters in usermode.
+                * Fixed usage of "nx" user as normal user in usermode.
+                * Disabled slave mode and load balancing for usermode.
+                * Fixed creation of the logfile directory.
+                * Fixed nxnode usage of SSH_CLIENT using fallback mechanism.
+          (Patch by nbartos@bat.berlios.de, fabianx@bat.berlios.de)
+        * Added disabled nxserver-suid wrapper with help from Google. To
+          enable it uncomment the suid_install target in Makefile.
+          ( Alistair Riddoch <alriddoch@google.com>, fabianx@bat.berlios.de)
+        * Automatically disabled slave mode, when load balancing is activated.
+          (fabianx@bat.berlios.de)
+        * Made ENABLE_SLAVE_MODE="1" the new default as its faster
+          and more reliable. If you encounter any problems with it,
+          disable it in node.conf.
+          (fabianx@bat.berlios.de)
+        * Changed type for external agents to windows-helper or vnc-helper
+          so that those sessions can be mirrored / shadowed as well.
+          (fabianx@bat.berlios.de)
+        * Added nxshadowacl.sample component to be able to shadow
+          foreign sessions.
+          (fabianx@bat.berlios.de)
+        * Prepared shadowing foreign users for VNC-shadowing.
+          (fabianx@bat.berlios.de)
+        * Added shadow support to --listsession command.
+          (fabianx@bat.berlios.de)
+        * Added shadow mode as nxagent target.
+          (fabianx@bat.berlios.de)
+        * Fixed shadow mode and made it usable.
+          (Patch by Amin Shehata <amino7 at yahoo dot com>, fabianx@bat.berlios.de)
+	</pre>
+
+	<h3>
+		<a
 	href="http://mail.kde.org/pipermail/freenx-knx/2007-October/005959.html">FreeNX
 	0.7.1 Released</a> 
         - Sunday, 14/10/07 - 
