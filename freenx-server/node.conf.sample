@@ -605,7 +605,7 @@
 # for examples of useful parameters.
 #AGENT_EXTRA_OPTIONS_RFB=""
 #AGENT_EXTRA_OPTIONS_RDP=""
-#AGENT_EXTRA_OPTIONS_X=""
+#AGENT_EXTRA_OPTIONS_X="-nolisten tcp"
 
 # The number of seconds we wait for the nxagent to start before
 # deciding startup has failed

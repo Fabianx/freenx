@@ -1,4 +1,4 @@
-18.08.2008 FreeNX 0.7.3
+18.08.2008 FreeNX 0.7.3 "Priscilla One Year Edition"
 	* Opened the 0.7.3 development.
 	* Added logging of failed authentication attempts
 	  to auth.log via syslog (3). This can be disabled by 
@@ -110,12 +110,12 @@
 	  (fabianx@bat.berlios.de)
 	* Prepared shadowing foreign users for VNC-shadowing.
 	  (fabianx@bat.berlios.de)
-	* The same user is always allowed to shadow its own sessions.
-	  (fabianx@bat.berlios.de)
 	* Added shadow support to --listsession command.
 	  (fabianx@bat.berlios.de)
 	* Added shadow mode as nxagent target.
 	  (fabianx@bat.berlios.de)
+	* Fixed shadow mode and made it usable.
+	  (Patch by Amin Shehata <amino7 at yahoo dot com>, fabianx@bat.berlios.de)
 
 14.03.2008 FreeNX 0.7.2 "Priscilla Edition"
 	* Opened the 0.7.2 development.

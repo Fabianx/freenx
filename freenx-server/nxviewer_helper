@@ -20,28 +20,13 @@ echo "$agent_password" | $COMMAND_VNCPASSWD "$NXSESSION_DIRECTORY/scripts/.passw
 if [ -n "$shadowdisplay" ]
 then
 	(
-		unset XAUTHORITY
+		# Get correct xauthority file from environment
+		export XAUTHORITY="$SHADOW_XAUTHORITY"
 
-		# We need to set just :0.0 in case of localhost connection.
-		[ "$shadowhost" = "127.0.0.1" ] && shadowhost=""
-			
-		
-		# don't use accept popup or viewonly mode  as its the same user
-		accept=""
 		viewonly=""
+		[ "$ENABLE_INTERACTIVE_SESSION_SHADOWING" != "1" ] && viewonly="-viewonly"
 		
-		# not the same user? So we have a shadow cookie, we add to xauth
-		if [ -n "$shadowcookie" ]
-		then
-			xauth add "$shadowhost:$shadowdisplay" MIT-MAGIC-COOKIE-1 "$shadowcookie"
-			if [ "$shadowuser" != "$USER" ]
-			then
-				[ "$ENABLE_SESSION_SHADOWING_AUTHORIZATION" = "1" ] && accept="-accept popup"
-				[ "$ENABLE_INTERACTIVE_SESSION_SHADOWING" != "1" ] && viewonly="-viewonly"
-			fi
-		fi
-		
-		DISPLAY="$shadowhost:$shadowdisplay" $COMMAND_X11VNC -localhost $accept $viewonly -timeout 120 -once -rfbauth "$NXSESSION_DIRECTORY/scripts/.passwd" >"$NXSESSION_DIRECTORY/scripts/.vnc_port" &
+		DISPLAY="$shadowhost:$shadowdisplay" $COMMAND_X11VNC -localhost $viewonly -timeout 120 -once -rfbauth "$NXSESSION_DIRECTORY/scripts/.passwd" >"$NXSESSION_DIRECTORY/scripts/.vnc_port" &
 	)
 	sleep 2
 	agent_port=$(cat "$NXSESSION_DIRECTORY/scripts/.vnc_port" | egrep "^PORT=" | cut -d'=' -f 2)

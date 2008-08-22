@@ -1297,6 +1297,41 @@ server_startrestore_session()
 			return 1
 		fi
 
+		[ "$shadowhost" = "127.0.0.1" ] && shadowhost=""
+
+		# not the same user? So we have a shadow cookie, we add to xauth
+		if [ -n "$shadowcookie" -a "$ENABLE_SESSION_SHADOWING_AUTHORIZATION" = "1" ]
+		then
+			# Ask for permission first:
+			echo_x "NX> 726 Asking user for authorization to attach to session"
+			export XAUTHORITY=".Xauthority-$RANDOM-$$"
+	               	$COMMAND_XAUTH add "$shadowhost:$shadowdisplay" MIT-MAGIC-COOKIE-1 "$shadowcookie" >/dev/null 2>&1
+			PERMISSION=$(
+				$PATH_BIN/nxdialog -display $shadowhost:$shadowdisplay -dialog yesno -caption "Authorization Request" -message "Do you want to allow $USER to shadow your session?" 2>/dev/null &
+				SHADOW_DIALOG_PID=$!
+				
+				I=0
+				while kill -0 $SHADOW_DIALOG_PID 2>/dev/null
+				do
+					let I=I+1
+					[ $I -gt "$AGENT_STARTUP_TIMEOUT" ] && kill $SHADOW_DIALOG_PID 2>/dev/null
+					sleep 1
+				done
+				
+				echo "no"
+				)
+				
+			$COMMAND_XAUTH remove "$shadowhost:$shadowdisplay"
+			rm -f "$XAUTHORITY"
+
+			if [ "$PERMISSION" = "no" ]
+			then
+				# User answered NO
+				echo_x "NX> 596 Error: Authorization refused by user: $shadowuser."
+				return 1
+			fi
+		fi
+
 		PARAMS="$PARAMS&shadowdisplay=$shadowdisplay&shadowhost=$shadowhost&shadowcookie=$shadowcookie&shadowuser=$shadowuser"
 		CMDLINE=$PARAMS
 	fi
