@@ -7,6 +7,13 @@
 # License: GPL
 #
 
+# VARIABLES:
+
+NXSERVER_SUID="/usr/NX/bin/nxserver-suid"
+NXSERVER_USERMODE="~/NX4U/bin/nxserver-usermode"
+
+# PROGRAM
+
 CONN=$(echo "$@" | sed 's/.*nx@//g' | cut -d" " -f1)
 
 unset NXWRAP
@@ -19,7 +26,7 @@ NX> 202 Authenticating user: nx
 NX> 208 Using auth method: publickey
 EOF
 
-export REMOTE_COMMAND='if [ -x /usr/NX/bin/nxserver-suid -a -u /usr/NX/bin/nxserver-suid ]; then unset SSH_CLIENT SSH_CLIENT2; export SSH_CLIENT="127.0.0.1 56404 127.0.0.1 22"; /usr/NX/bin/nxserver-suid; elif [ -x ~/NX4U/bin/nxserver-usermode ]; then ~/NX4U/bin/nxserver-usermode ; else echo "NX> 404 Service not available."; fi'
+export REMOTE_COMMAND='if [ -x '"$NXSERVER_SUID"' -a -u '"$NXSERVER_SUID"' ]; then unset SSH_CLIENT SSH_CLIENT2; export SSH_CLIENT="127.0.0.1 56404 127.0.0.1 22"; '$NXSERVER_SUID'; elif [ -x '"$NXSERVER_USERMODE"' ]; then '"$NXSERVER_USERMODE"'; else echo "NX> 596 Service not available."; echo "NX> 999 Bye"; fi'
 
 echo "HELLO NXSERVER - Version 3.2.0 OS (GPL Edition)"	
 
