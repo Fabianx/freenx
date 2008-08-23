@@ -21,7 +21,8 @@ NX> 200 Connected to address: 127.0.0.1 on port: 22
 NX> 202 Authenticating user: nx
 NX> 208 Using auth method: publickey
 EOF
-
+	echo "HELLO NXSERVER - Version 3.2.0 OS (GPL Edition)"	
+	
 	# Login stage
 	while true
 	do
