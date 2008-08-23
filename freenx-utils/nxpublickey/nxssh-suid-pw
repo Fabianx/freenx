@@ -63,11 +63,11 @@ EOF
 			login|LOGIN)
 				LOGIN_SUCCESS="0"
 				
-				echo_x -n "NX> 101 User: "
+				echo -n "NX> 101 User: "
 				read USER2
-				echo_x $USER2
+				echo $USER2
 				
-				echo_x -n "NX> 102 Password: "
+				echo -n "NX> 102 Password: "
 				break
 			;;
 		esac
