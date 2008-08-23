@@ -75,7 +75,7 @@ then
 		esac
 	done
 
-	exec $(dirname $0)/nxssh.orig -nxstdinpass "$USER2@$CONN" -x -2 -B -o "NumberOfPasswordPrompts 1" sh -c "$REMOTE_COMMAND" || {
+	exec $(dirname $0)/nxssh.orig -nxstdinpass "$USER2@$CONN" -x -2 -B -o "NumberOfPasswordPrompts 1" sh -c "'$REMOTE_COMMAND'" || {
                 echo "NX> 404 ERROR: wrong password or login."
                 echo "NX> 999 Bye"
                 exit 1
@@ -83,5 +83,5 @@ then
 else # do wrap it
 	export SSH_ASKPASS=/usr/bin/ssh-askpass
 
-	exec $(dirname $0)/nxssh.orig "$CONN" -x -2 -B sh -c "$REMOTE_COMMAND"
+	exec $(dirname $0)/nxssh.orig "$CONN" -x -2 -B sh -c "'$REMOTE_COMMAND'"
 fi
