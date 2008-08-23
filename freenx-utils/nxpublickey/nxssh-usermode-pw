@@ -1,8 +1,8 @@
 #!/bin/bash
 #
-# Simple wrapper for nxssh for freenx-usermode.
+# Simple wrapper for nxssh for freenx-usermode with password from nxclient.
 #
-# Copyright (c) 2005 by Fabian Franz.
+# Copyright (c) 2005-2008 by Fabian Franz.
 #
 # License: GPL
 #
@@ -75,7 +75,11 @@ EOF
 
 	export SSH_ASKPASS=/usr/bin/ssh-askpass
 
-	exec $(dirname $0)/nxssh.orig -nxstdinpass $CONN -x -2 -B sh -c "~/NX4U/bin/nxserver-usermode"
+	exec $(dirname $0)/nxssh.orig -nxstdinpass $CONN -x -2 -B -o "NumberOfPasswordPrompts 1" sh -c "~/NX4U/bin/nxserver-usermode" || {
+                echo "NX> 404 ERROR: wrong password or login."
+                echo "NX> 999 Bye"
+                exit 1
+             }
 else
 	exec $(dirname $0)/nxssh.orig "$@"
 fi
