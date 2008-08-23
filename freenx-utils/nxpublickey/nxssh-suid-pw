@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Simple wrapper for nxssh for freenx suid mode with password from nxclient.
+# Simple always wrapper for nxssh for freenx suid mode with password from nxclient.
 #
 # Copyright (c) 2005-2008 by Fabian Franz.
 #
@@ -9,77 +9,69 @@
 
 CONN=$(echo "$@" | sed 's/.*nx@//g' | cut -d" " -f1)
 
-unset NXWRAP
-case "$CONN" in *@*) NXWRAP=1 ;; esac
-
-if [ "$NXWRAP" = "1" ]
-then
-
-	cat <<EOF
+cat <<EOF
 NX> 203 NXSSH running with pid: $$
 NX> 200 Connected to address: 127.0.0.1 on port: 22
 NX> 202 Authenticating user: nx
 NX> 208 Using auth method: publickey
 EOF
-	echo "HELLO NXSERVER - Version 3.2.0 OS (GPL Edition)"	
+
+echo "HELLO NXSERVER - Version 3.2.0 OS (GPL Edition)"	
+
+# Login stage
+while true
+do
+	echo -n "NX> 105 "
+	read CMD
+	# FIXME?
+	[ "$CMD" = "" ] && CMD="quit"
+	echo "$CMD"
 	
-	# Login stage
-	while true
-	do
-		echo -n "NX> 105 "
-		read CMD
-		# FIXME?
-		[ "$CMD" = "" ] && CMD="quit"
-		echo "$CMD"
-		
-		case "$CMD" in 
-			quit|QUIT)
-				echo "Quit"
-				echo "NX> 999 Bye"
-				exit 0
-			;;
-			exit|EXIT)
-				echo "Exit"
-				echo "NX> 999 Bye"
-				exit 0
-			;;
-			bye|BYE)
-				echo "Bye"
-				echo "NX> 999 Bye"
-				exit 0
-			;;
-			hello*|HELLO*)
-				PROTO=$(echo $CMD | sed 's/.*Version \(.*\)/\1/g')
-				echo "NX> 134 Accepted protocol: $PROTO"
-			;;
-			"set auth_mode*"|"SET AUTH_MODE*")
-				if [ "$CMD" = "set auth_mode password" -o "$CMD" = "SET AUTH_MODE PASSWORD" ]
-				then
-					echo "Set auth_mode: password"
-				else
-					echo "NX> 500 ERROR: unknown auth mode ''"
-				fi
-			;;
-			login|LOGIN)
-				LOGIN_SUCCESS="0"
-				
-				echo -n "NX> 101 User: "
-				read USER2
-				echo $USER2
-				
-				echo -n "NX> 102 Password: "
-				break
-			;;
-		esac
-	done
+	case "$CMD" in 
+		quit|QUIT)
+			echo "Quit"
+			echo "NX> 999 Bye"
+			exit 0
+		;;
+		exit|EXIT)
+			echo "Exit"
+			echo "NX> 999 Bye"
+			exit 0
+		;;
+		bye|BYE)
+			echo "Bye"
+			echo "NX> 999 Bye"
+			exit 0
+		;;
+		hello*|HELLO*)
+			PROTO=$(echo $CMD | sed 's/.*Version \(.*\)/\1/g')
+			echo "NX> 134 Accepted protocol: $PROTO"
+		;;
+		"set auth_mode*"|"SET AUTH_MODE*")
+			if [ "$CMD" = "set auth_mode password" -o "$CMD" = "SET AUTH_MODE PASSWORD" ]
+			then
+				echo "Set auth_mode: password"
+			else
+				echo "NX> 500 ERROR: unknown auth mode ''"
+			fi
+		;;
+		login|LOGIN)
+			LOGIN_SUCCESS="0"
+			
+			echo -n "NX> 101 User: "
+			read USER2
+			echo $USER2
+			
+			echo -n "NX> 102 Password: "
+			break
+		;;
+	esac
+done
 
-	export SSH_ASKPASS=/usr/bin/ssh-askpass
+export SSH_ASKPASS=/usr/bin/ssh-askpass
 
-	exec $(dirname $0)/nxssh.orig -nxstdinpass $CONN -x -2 -B -o "NumberOfPasswordPrompts 1" sh -c "/usr/NX/bin/nxserver-suid" || {
-                echo "NX> 404 ERROR: wrong password or login."
-                echo "NX> 999 Bye"
-                exit 1
-             }
-else
-	exec $(dirname $0)/nxssh.orig "$@"
-fi
+exec $(dirname $0)/nxssh.orig -nxstdinpass "$USER2@$CONN" -x -2 -B -o "NumberOfPasswordPrompts 1" sh -c 'unset SSH_CLIENT SSH_CLIENT2; export SSH_CLIENT="127.0.0.1 56404 127.0.0.1 22"; /usr/NX/bin/nxserver-suid' || {
+	echo "NX> 404 ERROR: wrong password or login."
+	echo "NX> 999 Bye"
+	exit 1
+     }
