@@ -8,7 +8,7 @@
 #
 #	hostname: [@]hostname, if the @ is set it is wrapped.
 #
-#	username: [@]user[@U|@S]
+#	username: [@]user[@<U|S>[:path-to-binary]]
 #
 #		The first @ denotes if password should not be read / used from nxclient. (@ set = use plain ssh)
 #
@@ -22,8 +22,9 @@
 
 # VARIABLES:
 
-NXSERVER_SUID="/usr/NX/bin/nxserver-suid"
-NXSERVER_USERMODE="~/NX4U/bin/nxserver-usermode"
+NXSERVER_SUID="nxserver-suid"
+NXSERVER_USERMODE="nxserver-usermode"
+NXSERVER_PATH="~/bin:~/NX4U/:/usr/NX/bin:/opt/NX/bin:/opt/NX4U/bin/:/usr/lib/nx/bin"
 
 # Enable to always wrap
 #NXWRAP=1
@@ -124,13 +125,23 @@ EOF
 	case "$USER2" in 
 		*"@"*)
 			MODE=$(echo $USER2 | cut -d'@' -f2)
+			USER2=$(echo $USER2 | cut -d'@' -f1)
+
+			# Parse for : part
+			BINARY=$(echo $MODE | cut -d':' -f2)
+			MODE=$(echo $MODE | cut -d':' -f1)
+			
 			[ "$MODE" = "U" ] && NXSERVER_SUID=/bin/false
 			[ "$MODE" = "S" ] && NXSERVER_USERMODE=/bin/falsedoesnotexist
-			USER2=$(echo $USER2 | cut -d'@' -f1)
+			
+			# Did we get a hint that another binary should be used?
+
+			[ -n "$BINARY" -a "$MODE" = "U" ] && NXSERVER_USERMODE="$BINARY $NXSERVER_USERMODE"
+			[ -n "$BINARY" -a "$MODE" = "S" ] && NXSERVER_SUID="$BINARY $NXSERVER_SUID"
 		;;
 	esac
 	
-	export REMOTE_COMMAND='if [ -x '"$NXSERVER_SUID"' -a -u '"$NXSERVER_SUID"' ]; then unset SSH_CLIENT SSH_CLIENT2; export SSH_CLIENT="127.0.0.1 56404 127.0.0.1 22"; '$NXSERVER_SUID'; elif [ -x '"$NXSERVER_USERMODE"' ]; then '"$NXSERVER_USERMODE"'; else echo "NX> 596 Service not available."; echo "NX> 999 Bye"; fi'
+	export REMOTE_COMMAND='export PATH='"$NXSERVER_PATH"':"$PATH"; for i in $(which -a '"$NXSERVER_SUID"'); do if [ -x "$i" -a -u "$i" ]; then unset SSH_CLIENT SSH_CLIENT2; export SSH_CLIENT="127.0.0.1 56404 127.0.0.1 22"; exec "$i"; fi; done; for i in $(which -a '"$NXSERVER_USERMODE"'); do if [ -x "$i" -a ! -L "$i" ]; then exec "$i"; fi; done; echo "NX> 596 Service not available."; echo "NX> 999 Bye"'
 
 	if [ "$PWMODE" = "1" ]
 	then 
