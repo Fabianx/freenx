@@ -132,7 +132,7 @@ EOF
 	
 	export REMOTE_COMMAND='if [ -x '"$NXSERVER_SUID"' -a -u '"$NXSERVER_SUID"' ]; then unset SSH_CLIENT SSH_CLIENT2; export SSH_CLIENT="127.0.0.1 56404 127.0.0.1 22"; '$NXSERVER_SUID'; elif [ -x '"$NXSERVER_USERMODE"' ]; then '"$NXSERVER_USERMODE"'; else echo "NX> 596 Service not available."; echo "NX> 999 Bye"; fi'
 
-	if [ "$PWMODE" != "1" ]
+	if [ "$PWMODE" = "1" ]
 	then 
 		$(dirname $0)/nxssh.orig -nxstdinpass "$USER2@$CONN" -x -2 -B -o "NumberOfPasswordPrompts 1" sh -c "'$REMOTE_COMMAND'" 
 	else
