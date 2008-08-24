@@ -24,7 +24,7 @@
 
 NXSERVER_SUID="nxserver-suid"
 NXSERVER_USERMODE="nxserver-usermode"
-NXSERVER_PATH="~/bin:~/NX4U/:/usr/NX/bin:/opt/NX/bin:/opt/NX4U/bin/:/usr/lib/nx/bin"
+NXSERVER_PATH="~/bin:~/NX4U/:/usr/NX/bin:/opt/NX/bin:/opt/NX4U/bin/:/usr/NX4U/bin:/usr/local/NX4U/bin:/usr/lib/nx/bin"
 
 # Enable to always wrap
 #NXWRAP=1
