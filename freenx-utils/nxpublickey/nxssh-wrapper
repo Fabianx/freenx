@@ -141,7 +141,7 @@ EOF
 		;;
 	esac
 	
-	export REMOTE_COMMAND='export PATH='"$NXSERVER_PATH"':"$PATH"; for i in $(which -a '"$NXSERVER_SUID"'); do if [ -x "$i" -a -u "$i" ]; then unset SSH_CLIENT SSH_CLIENT2; export SSH_CLIENT="127.0.0.1 56404 127.0.0.1 22"; exec "$i"; fi; done; for i in $(which -a '"$NXSERVER_USERMODE"'); do if [ -x "$i" -a ! -L "$i" ]; then exec "$i"; fi; done; echo "NX> 596 Service not available."; echo "NX> 999 Bye"'
+	export REMOTE_COMMAND='export PATH='"$NXSERVER_PATH"':"$PATH"; for i in $(which -a '"$NXSERVER_SUID"'); do if [ -x "$i" -a -u "$i" ]; then unset SSH_CLIENT SSH_CLIENT2; export SSH_CLIENT="127.0.0.1 56404 127.0.0.1 22"; exec "$i"; fi; done; for i in $(which -a '"$NXSERVER_USERMODE"'); do if [ -x "$i" -a ! -u "$i" -a ! -L "$i" ]; then exec "$i"; fi; done; echo "NX> 596 Service not available."; echo "NX> 999 Bye"'
 
 	if [ "$PWMODE" = "1" ]
 	then 
