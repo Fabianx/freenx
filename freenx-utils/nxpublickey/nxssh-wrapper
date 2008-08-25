@@ -26,6 +26,8 @@ NXSERVER_SUID="nxserver-suid"
 NXSERVER_USERMODE="nxserver-usermode"
 NXSERVER_PATH="~/bin:~/NX4U/:/usr/NX/bin:/opt/NX/bin:/opt/NX4U/bin/:/usr/NX4U/bin:/usr/local/NX4U/bin:/usr/lib/nx/bin"
 
+NXSSH_ORIG="mxssh"
+
 # Enable to always wrap
 #NXWRAP=1
 
@@ -145,11 +147,11 @@ EOF
 
 	if [ "$PWMODE" = "1" ]
 	then 
-		$(dirname $0)/nxssh.orig -nxstdinpass "$USER2@$CONN" -x -2 -B -o "NumberOfPasswordPrompts 1" sh -c "'$REMOTE_COMMAND'" 
+		$(dirname $0)/$NXSSH_ORIG -nxstdinpass "$USER2@$CONN" -x -2 -B -o "NumberOfPasswordPrompts 1" sh -c "'$REMOTE_COMMAND'" 
 	else
 		export SSH_ASKPASS=/usr/bin/ssh-askpass
 
-		$(dirname $0)/nxssh.orig "$USER2@$CONN" -x -2 -B sh -c "'$REMOTE_COMMAND'"
+		$(dirname $0)/$NXSSH_ORIG "$USER2@$CONN" -x -2 -B sh -c "'$REMOTE_COMMAND'"
 	fi
 
 	if [ $? -ne 0 ]
@@ -160,5 +162,5 @@ EOF
 	fi
 
 else # do not wrap it
-	exec $(dirname $0)/nxssh.orig "$@"
+	exec $(dirname $0)/$NXSSH_ORIG "$@"
 fi
