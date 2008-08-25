@@ -12,11 +12,11 @@
 	</h2>
 	<h3>
 		<a
-	href="">FreeNX
+	href="http://mail.kde.org/pipermail/freenx-knx/2008-August/007324.html">FreeNX
 	0.7.3 "Priscilla One Year Edition" Released</a>
         - Sunday, 18/08/08 - 
 	[<a title="Download"
-	href="http://prdownload.berlios.de/freenx/freenx-0.7.3.tar.gz">Download</a>]
+	href="http://prdownload.berlios.de/freenx/freenx-server-0.7.3.tar.gz">Download</a>]
 	</h3>
 	<pre>
 18.08.2008 FreeNX 0.7.3 "Priscilla One Year Edition"
