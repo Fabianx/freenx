@@ -237,8 +237,8 @@ int main(int argc, char** argv)
 		else
 		{
 #ifndef _WIN32
-			// Need to putenv SSH_ASKPASS
-			putenv("SSH_ASKPASS=/usr/bin/ssh-askpass");
+			// Need to setenv SSH_ASKPASS if not already set
+			setenv("SSH_ASKPASS","/usr/bin/ssh-askpass", 0);
 #endif
 			execl(command, argv[0], "-l", username, hostname, "-x", "-2", "-B", "sh", "-c", remote_command, NULL);
 			perror("Error: Could not execute original renamed nxssh (default: mxssh)");

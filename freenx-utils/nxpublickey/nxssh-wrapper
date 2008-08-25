@@ -149,7 +149,7 @@ EOF
 	then 
 		$(dirname $0)/$NXSSH_ORIG -nxstdinpass "$USER2@$CONN" -x -2 -B -o "NumberOfPasswordPrompts 1" sh -c "'$REMOTE_COMMAND'" 
 	else
-		export SSH_ASKPASS=/usr/bin/ssh-askpass
+		[ -z "$SSH_ASKPASS" ] && export SSH_ASKPASS=/usr/bin/ssh-askpass
 
 		$(dirname $0)/$NXSSH_ORIG "$USER2@$CONN" -x -2 -B sh -c "'$REMOTE_COMMAND'"
 	fi
