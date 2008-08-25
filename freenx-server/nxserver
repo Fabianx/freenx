@@ -1961,53 +1961,42 @@ cmd_history()
 	session_history "$user" "$sessid"
 }
 
-cmd_terminate()
+cmd_execute()
 {
-	CMD_PARAMS=$(cmd_parse_3_params "$2")
-	[ -z "$CMD_PARAMS" ] && exit 1
-	for i in $CMD_PARAMS;
+	cmd_host="$1"
+	cmd_user="$2"
+	cmd_cmd="$3"
+
+	if [ "$ENABLE_USERMODE_AUTHENTICATION" = "1" ]
+	then
+		sh -c "$cmd_cmd"
+	elif [ "$cmd_host" = "127.0.0.1" -o "$cmd_host" = "localhost" ]
+	then
+		su - "$cmd_user" -c "$cmd_cmd"
+	else
+		ssh "$cmd_host" su - "$cmd_user" -c "'$cmd_cmd'"
+	fi
+}
+
+cmd_terminate_or_send()
+{
+	CMD="$1"
+
+	if [ "$CMD" = "--broadcast" ]
+	then
+		CMD_PARAMS=$(session_find_all)
+		[ -z "$CMD_PARAMS" ] && cmd_abort "Error: No running session could be found."
+	else
+		CMD_PARAMS=$(cmd_parse_3_params "$2")
+		[ -z "$CMD_PARAMS" ] && exit 1
+		shift
+	fi
+	shift
+
+	for i in $CMD_PARAMS
 	do
 			CMDLINE=$(session_get_cmdline $i)
 			cmd_sessionid=$(getparam sessionId)
-			cmd_user=$(getparam userName)
-			cmd_type=$(getparam type)
-			cmd_status=$(getparam status)
-
-			# is it a "good" session?
-			case "$1" in 
-			--suspend)
-				if [ "$cmd_status" = "Running" ] && stringinstring "unix-" "$cmd_type"
-				then
-					echo "sessionid=$cmd_sessionid" | su - "$cmd_user" -c "$PATH_BIN/nxnode --suspend"
-				fi
-			;;
-			--terminate)
-				echo "sessionid=$cmd_sessionid" | su - "$cmd_user" -c "$PATH_BIN/nxnode --terminate"
-			;;
-			--force-terminate)
-				echo "sessionid=$cmd_sessionid" | su - "$cmd_user" -c "$PATH_BIN/nxnode --terminate"
-				session_close $cmd_sessionid
-			;;
-			esac
-	done
-
-}
-
-cmd_send()
-{
-	if [ "$1" = "--broadcast" ]
-	then
-	  CMD_PARAMS=$(session_find_all)
-	  [ -z "$CMD_PARAMS" ] && cmd_abort "Error: No running session could be found."
-	else
-	  CMD_PARAMS=$(cmd_parse_3_params "$2")
-	  [ -z "$CMD_PARAMS" ] && exit 1
-	  shift
-	fi
-	shift
-	for i in $CMD_PARAMS;
-	do
-			CMDLINE=$(session_get_cmdline $i)
 			cmd_display=$(getparam display)
 			cmd_user=$(getparam userName)
 			cmd_type=$(getparam type)
@@ -2015,17 +2004,28 @@ cmd_send()
 			cmd_host=$(getparam host)
 
 			# is it a "good" session?
-			if [ "$cmd_status" = "Running" ] && stringinstring "unix-" "$cmd_type"
-			then
-				if [ "$cmd_host" = "127.0.0.1" -o "$cmd_host" = "localhost" ]
+			case "$CMD" in 
+			--suspend)
+				if [ "$cmd_status" = "Running" ] && stringinstring "unix-" "$cmd_type"
 				then
-					su - "$cmd_user" -c "$PATH_BIN/nxdialog --dialog ok --caption \"NX Administrator Message\" --message \"$@\" -display \":$cmd_display\" &"
-				else
-					ssh $cmd_host su - "$cmd_user" -c "'$PATH_BIN/nxdialog --dialog ok --caption \"NX Administrator Message\" --message \"$@\" -display \":$cmd_display\" &'"
+					echo "sessionid=$cmd_sessionid" | cmd_execute "$cmd_host" "$cmd_user" "$PATH_BIN/nxnode --suspend"
 				fi
-			fi
+			;;
+			--terminate)
+				echo "sessionid=$cmd_sessionid" | cmd_execute "$cmd_host" "$cmd_user" "$PATH_BIN/nxnode --terminate"
+			;;
+			--force-terminate)
+				echo "sessionid=$cmd_sessionid" | cmd_execute "$cmd_host" "$cmd_user" "$PATH_BIN/nxnode --terminate"
+				session_close $cmd_sessionid
+			;;
+			--send|--broadcast)
+				# is it a "good" session?
+				if [ "$cmd_status" = "Running" ] && stringinstring "unix-" "$cmd_type"
+				then
+					cmd_execute "$cmd_host" "$cmd_user" "$PATH_BIN/nxdialog --dialog ok --caption \"NX Administrator Message\" --message \"$@\" -display \":$cmd_display\" &"
+				fi
+			esac
 	done
-	#nxnode_start --send "$CMD_PARAMS"
 }
 
 #
@@ -2099,13 +2099,13 @@ case $CMD in
 		cmd_history "$@"
 	;;
 	--terminate|--suspend|--force-terminate)
-		cmd_terminate "$@"
+		cmd_terminate_or_send "$@"
 	;;
 	--cleanup)
-		cmd_terminate "--force-terminate" "*"
+		cmd_terminate_or_send "--force-terminate" "*"
 	;;
 	--send|--broadcast)
-		cmd_send "$@"
+		cmd_terminate_or_send "$@"
 	;;
 	*)
 		cmd_abort "Error: Function $CMD not implemented yet."
