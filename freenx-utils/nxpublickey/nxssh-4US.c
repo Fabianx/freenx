@@ -101,11 +101,13 @@ int main(int argc, char** argv)
 	while(1)
 	{
 		printf("NX> 105 ");
+		fflush(stdout);
 
 		if (fgets(line, BUF_MAX, stdin) == NULL)
 		{
 			printf("Quit\n");
 			printf("NX> 999 Bye\n");
+			fflush(stdout);
 			exit(0);
 		}  
 		
@@ -115,31 +117,37 @@ int main(int argc, char** argv)
 		{
 			printf("Quit\n");
 			printf("NX> 999 Bye\n");
+			fflush(stdout);
 			exit(0);
 		}
 		else if (strncmp(line, "exit", 4) == 0 || strncmp(line, "EXIT", 4) == 0)
 		{
 			printf("Exit\n");
 			printf("NX> 999 Bye\n");
+			fflush(stdout);
 			exit(0);
 		}
 		else if (strncmp(line, "bye", 3) == 0 || strncmp(line, "BYE", 3) == 0)
 		{
 			printf("Bye\n");
 			printf("NX> 999 Bye\n");
+			fflush(stdout);
 			exit(0);
 		}
 		else if (strncmp(line, "hello", 5) == 0 || strncmp(line, "HELLO", 5) == 0)
 		{
 			printf("NX> 134 Accepted protocol: 3.2.0\n");
+			fflush(stdout);
 		}
 		else if (strncmp(line, "set auth_mode", 13) == 0 || strncmp(line, "SET AUTH_MODE", 13) == 0)
 		{
 			printf("%s", line);
+			fflush(stdout);
 		}
 		else if (strncmp(line, "login", 5) == 0 || strncmp(line, "LOGIN", 5) == 0)
 		{
 			printf("NX> 101 User: ");
+			fflush(stdout);
 			fgets(user, BUF_MAX, stdin);
 
 			// Remove newline from username
@@ -149,6 +157,7 @@ int main(int argc, char** argv)
 			printf("%s\n", username);
 
 			printf("NX> 102 Password: ");
+			fflush(stdout);
 			break;
 		}
 	}
@@ -243,6 +252,7 @@ int main(int argc, char** argv)
 	{
 		printf("NX> 404 ERROR: wrong password or login.\n");
 		printf("NX> 999 Bye\n");
+		fflush(stdout);
 		exit(1);
 	}
 
