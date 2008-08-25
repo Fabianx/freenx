@@ -236,7 +236,7 @@ int main(int argc, char** argv)
 		}
 		else
 		{
-			execl(command, argv[0], "-l", username, hostname, "-x", "-2", "-B", "-o", "sh", "-c", remote_command, NULL);
+			execl(command, argv[0], "-l", username, hostname, "-x", "-2", "-B", "sh", "-c", remote_command, NULL);
 			perror("Error: Could not execute original renamed nxssh (default: mxssh)");
 			exit(1);
 		}
