@@ -1192,7 +1192,7 @@ server_loadbalance_round_robin()
 	# Lock held
 
 	SERVER_LB_NR=$(cat $NX_SESS_DIR/round-robin 2>/dev/null)
-	let SERVER_LB_NR=(SERVER_LB_NR+1) % SERVER_LB_NR_OF_HOSTS
+	let SERVER_LB_NR=(SERVER_LB_NR+1)%SERVER_LB_NR_OF_HOSTS
 	echo $SERVER_LB_NR >$NX_SESS_DIR/round-robin
 
 	# Exit critical section

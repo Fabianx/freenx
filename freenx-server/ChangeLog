@@ -3,6 +3,8 @@ xx.11.2008 FreeNX 0.7.4
 	* Fixed missing export of NX_ETC_DIR in Makefile,
 	  so node.conf.sample is installed correctly.
 	  (fabianx@bat.berlios.de)
+	* Fixed broken round-robin load balance algorithm.
+	  (fabianx@bat.berlios.de)
 
 18.08.2008 FreeNX 0.7.3 "Priscilla One Year Edition"
 	* Opened the 0.7.3 development.
