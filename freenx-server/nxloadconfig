@@ -85,6 +85,7 @@ NXCONFIG_RETEST=1
 # General FreeNX directives
 
 SERVER_NAME="$(hostname)"
+EXTERNAL_PROXY_IP=""
 SSHD_PORT=22
 
 # Authentication / Security directives

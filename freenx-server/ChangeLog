@@ -11,6 +11,9 @@ xx.11.2008 FreeNX 0.7.4
 	* Fixed --terminate|--suspend|--force-terminate for
 	  usermode case.
 	  (fabianx@bat.berlios.de)
+	* Fixed non-encrypted session mode. You might need to
+	  set EXTERNAL_PROXY_IP in node.conf.
+	  (fabianx@bat.berlios.de)
 
 18.08.2008 FreeNX 0.7.3 "Priscilla One Year Edition"
 	* Opened the 0.7.3 development.

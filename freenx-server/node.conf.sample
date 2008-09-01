@@ -47,6 +47,11 @@
 # different than the default hostname (as returned by `hostname`)
 #SERVER_NAME="$(hostname)"
 
+# The node ip which is used by NX Node in unecnrypted session mode.
+# Set it if you want to use a specific external ip or the autodetection
+# is not working.
+#EXTERNAL_PROXY_IP=""
+
 # The port number where local 'sshd' is listening.
 #SSHD_PORT=22
 

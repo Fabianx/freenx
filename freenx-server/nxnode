@@ -1184,6 +1184,17 @@ startsession()
 		[ -z "$userip" -a "$host" = "127.0.0.1" ] && userip="127.0.0.1"
 		[ -z "$userip" ] && userip="*"
 	fi
+
+	# We need our own external IP
+	proxyip="$EXTERNAL_PROXY_IP"
+
+	if [ -z "$proxyip" -a -n "$host" ]
+	then
+		[ "$host" = "127.0.0.1" ] && host=$(hostname)
+		proxyip=$(ping -c1 "$host" | grep 'PING' | cut -d'(' -f2 | cut -d')' -f1)
+	fi
+	
+	[ -z "$proxyip" ] && proxyip="127.0.0.1"
 	
 	# ok, lets make the session dir first:
 	
@@ -1316,7 +1327,7 @@ NX> 700 Session id: $sess_id
 NX> 705 Session display: $display
 NX> 703 Session type: $type
 NX> 701 Proxy cookie: $proxy_cookie
-NX> 702 Proxy IP: $userip
+NX> 702 Proxy IP: $proxyip
 NX> 706 Agent cookie: $cookie
 NX> 704 Session cache: $type
 NX> 707 SSL tunneling: $ssl_tunnel
